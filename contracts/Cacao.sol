@@ -1,5 +1,5 @@
 pragma solidity ^0.4.21;
-import "./CacaoFunctions.sol";
+import "./CacaoLibrary.sol" as CacaoLibraryImport;
 import "./StandardToken.sol";
 import "./CacaoKeyRing.sol";
 import "./CacaoCreation.sol";
@@ -10,7 +10,9 @@ import "./Freezable.sol";
 
 /// @title Cacao Contract
 /// @author 0w3w
-contract Cacao is StandardToken, CacaoKeyRing, Freezable, CacaoCreation, CacaoDistribution, CacaoDestruction, CacaoRescue {
+contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution, CacaoDestruction, CacaoRescue, Freezable {
+
+    using CacaoLibraryImport.CacaoLibrary for uint256;
 
     function Cacao() public {
         _symbol = "CAO";
@@ -29,19 +31,32 @@ contract Cacao is StandardToken, CacaoKeyRing, Freezable, CacaoCreation, CacaoDi
     */
 
     function transfer(address _to, uint256 _value) public notFrozen returns (bool) {
+      _value.requireValidAmmount();
       return super.transfer(_to, _value);
     }   
     function transferFrom(address _from, address _to, uint256 _value) public notFrozen returns (bool) {
+      _value.requireValidAmmount();
       return super.transferFrom(_from, _to, _value);
     }   
     function approve(address _spender, uint256 _value) public notFrozen returns (bool) {
+      _value.requireValidAmmount();
       return super.approve(_spender, _value);
     }   
-    function increaseApproval(address _spender, uint _addedValue) public notFrozen returns (bool success) {
+    function increaseApproval(address _spender, uint256 _addedValue) public notFrozen returns (bool success) {
+      _addedValue.requireValidAmmount();
       return super.increaseApproval(_spender, _addedValue);
     }   
-    function decreaseApproval(address _spender, uint _subtractedValue) public notFrozen returns (bool success) {
+    function decreaseApproval(address _spender, uint256 _subtractedValue) public notFrozen returns (bool success) {
+      _subtractedValue.requireValidAmmount();
       return super.decreaseApproval(_spender, _subtractedValue);
+    }
+
+    /*
+        CacaoCreation
+    */
+
+    function IsValidCreationAddress(address _address) internal notFrozen returns (bool _isValid) {
+        return isCreator(_address);
     }
 
     /*
@@ -56,7 +71,7 @@ contract Cacao is StandardToken, CacaoKeyRing, Freezable, CacaoCreation, CacaoDi
         CacaoDestruction
     */
 
-    function burn(uint256 _ammount, string reference) public {
+    function burn(uint256 _ammount, string reference) public notFrozen {
         require(_ammount > 0);
         uint256 fromBalance = balances[msg.sender];
         require(fromBalance >= _ammount);
@@ -65,11 +80,11 @@ contract Cacao is StandardToken, CacaoKeyRing, Freezable, CacaoCreation, CacaoDi
         super.burn(_ammount, reference);
     }
     
-    function obliterate(uint256 _ammount) onlyDistributor() public {
+    function obliterate(uint256 _ammount) onlyDistributor() public notFrozen {
         super.obliterate(_ammount);
     }
 
-    function canGenerateDestructionReference(address _sender) internal returns (bool result){
+    function canGenerateDestructionReference(address _sender) internal notFrozen returns (bool result){
         return isDistributor(_sender);
     }
 

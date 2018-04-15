@@ -58,7 +58,7 @@ contract CacaoCreation {
     /// - Invalid amount, should be at least 1 finney.
     /// @param _ammount The ammount of cacaos to issue
     function startCreation(uint256 _ammount) external whenNotCreating() requireValidCreationAddress() {
-        _ammount.isValidAmmount();
+        _ammount.requireValidAmmount();
         _ammountToCreate = _ammount;
         _creationVotesInFavor = 1;
         _creationVotesAgainst = 0;
@@ -117,7 +117,7 @@ contract CacaoCreation {
     /// - The _ammount is less than .001 CAO
     /// @param _ammount The ammount of cacaos to Issue.
     function draw(uint256 _ammount) internal whenNotCreating() {
-        _ammount.isValidAmmount();
+        _ammount.requireValidAmmount();
         require(cacaosInLimbo <= _ammount);
         cacaosInLimbo = cacaosInLimbo.sub(_ammount);
     }
