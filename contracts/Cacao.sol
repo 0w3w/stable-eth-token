@@ -14,11 +14,20 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
 
     using CacaoLibraryImport.CacaoLibrary for uint256;
 
-    function Cacao() public {
+    function Cacao(
+        address _creatorAddress1,
+        address _creatorAddress2,
+        address _creatorAddress3,
+        address _creatorAddress4,
+        address _distributionAddress1,
+        address _distributionAddress2,
+        address _distributionAddress3
+    ) public {
         _symbol = "CAO";
         _name = "Cacao";
         _decimals = 3;
         _totalSupply = 0;
+        initializeAddresses(msg.sender, _creatorAddress1, _creatorAddress2, _creatorAddress3, _creatorAddress4, _distributionAddress1, _distributionAddress2, _distributionAddress3);
     }
 
     /// @notice The fallback funtion is disabled.

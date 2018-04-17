@@ -58,6 +58,14 @@ contract CacaoKeyRing {
 	/// @notice Initialize the contract by registering the creation and distribution addresses.
     /// @dev The contract will only work once this method is called
     /// Once succesfully called, this method will always fail.
+    /// @param _creatorAddress1 The creator address #1
+    /// @param _creatorAddress2 The creator address #2
+    /// @param _creatorAddress3 The creator address #3
+    /// @param _creatorAddress4 The creator address #4
+    /// @param _creatorAddress5 The creator address #5
+    /// @param _distributionAddress1 The distributor address #1
+    /// @param _distributionAddress2 The distributor address #2
+    /// @param _distributionAddress3 The distributor address #3
     function initializeAddresses(
         address _creatorAddress1,
         address _creatorAddress2,
