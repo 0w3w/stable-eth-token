@@ -33,9 +33,9 @@ contract CacaoCreation {
     }
 
     /// @notice Methods decorated with this will only be able to be executed when
-    /// the function IsValidCreationAddress returns true for the msg.sender.
+    /// the function isValidCreationAddress returns true for the msg.sender.
     modifier requireValidCreationAddress() {
-        require(IsValidCreationAddress(msg.sender));
+        require(isValidCreationAddress(msg.sender));
         _;
     }
 
@@ -49,7 +49,7 @@ contract CacaoCreation {
     /// @dev Abstract Method
     /// @param _address The address to verify
     /// @return True if it can
-    function IsValidCreationAddress(address _address) internal returns (bool _isValid);
+    function isValidCreationAddress(address _address) internal returns (bool _isValid);
 
     /// @notice Starts the creation process and executes the first vote in favor.
     /// @dev This method will fail if:
@@ -97,8 +97,7 @@ contract CacaoCreation {
             emit Created(_ammountToCreate);
         }
         else if (_creationVotesAgainst  >= _creationMajority) {
-            majorityAchieved = false;
-
+            majorityAchieved = true;
         }
         // Process completed, clean
         if(majorityAchieved) {

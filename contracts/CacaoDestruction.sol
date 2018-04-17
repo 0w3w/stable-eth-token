@@ -1,8 +1,14 @@
 pragma solidity ^0.4.21;
+import "./CacaoLibrary.sol" as CacaoDestructionCacaoLibraryImport;
+import "./SafeMath.sol" as CacaoDestructionSafeMathImport;
 
-/// @title Controls the destruction of Cacaos
+/// @title Abstract contract that controls the destruction of Cacaos
 /// @author 0w3w
 contract CacaoDestruction {
+
+    using CacaoDestructionCacaoLibraryImport.CacaoLibrary for uint256;
+    using CacaoDestructionSafeMathImport.SafeMath for uint256;
+
     // The total ammount of cacaos burned
     uint256 public cacaosBurned = 0;
 
@@ -45,8 +51,8 @@ contract CacaoDestruction {
     /// @param _ammount The ammount of cacaos to burn.
     function burn(uint256 _ammount, string reference) public validReference(reference) {
         _references[reference].isUsed = true;
-        cacaosInPurgatory = cacaosInPurgatory + _ammount;
-        cacaosBurned = cacaosBurned + _ammount;
+        cacaosInPurgatory = cacaosInPurgatory.add(_ammount);
+        cacaosBurned = cacaosBurned.add(_ammount);
         emit Burned(msg.sender, _ammount, reference);
     }
 
@@ -54,7 +60,7 @@ contract CacaoDestruction {
     /// @dev Will decrease _ammount from the cacaosInPurgatory.
     /// @param _ammount The ammount of cacaos to obliterate.
     function obliterate(uint256 _ammount) public { 
-        cacaosInPurgatory = cacaosInPurgatory - _ammount;
+        cacaosInPurgatory = cacaosInPurgatory.sub(_ammount);
         emit Obliterated(_ammount);
     }
 

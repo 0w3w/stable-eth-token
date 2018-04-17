@@ -30,6 +30,10 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         StandardToken
     */
 
+    function totalSupply() public view returns (uint256) {
+        return cacaosInLimbo + cacaosInCirculation + cacaosInPurgatory;
+    }
+
     function transfer(address _to, uint256 _value) public notFrozen returns (bool) {
       _value.requireValidAmmount();
       return super.transfer(_to, _value);
@@ -55,8 +59,22 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         CacaoCreation
     */
 
-    function IsValidCreationAddress(address _address) internal notFrozen returns (bool _isValid) {
+    function isValidCreationAddress(address _address) internal notFrozen returns (bool _isValid) {
         return isCreator(_address);
+    }
+
+    /*
+        CacaoDistribution
+    */
+
+    function isValidDistributionAddress(address _address) internal returns (bool _isValid) {
+        return isDistributor(_address);
+    }
+    
+    function distribute(address _to, uint256 _ammount) internal {
+        draw(_ammount);
+        balances[_to] = balances[_to].add(_ammount);
+        emit Transfer(address(this), _to, _ammount);
     }
 
     /*
@@ -75,7 +93,8 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         require(_ammount > 0);
         uint256 fromBalance = balances[msg.sender];
         require(fromBalance >= _ammount);
-        balances[msg.sender] -= _ammount;
+        balances[msg.sender] = balances[msg.sender].sub(_ammount);
+        cacaosInCirculation = cacaosInCirculation.sub(_ammount);
         emit Transfer(msg.sender, address(0), _ammount);
         super.burn(_ammount, reference);
     }

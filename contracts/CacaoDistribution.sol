@@ -1,28 +1,127 @@
 pragma solidity ^0.4.21;
+import "./CacaoLibrary.sol" as CacaoDistributionCacaoLibraryImport;
+import "./SafeMath.sol" as CacaoDistributionSafeMathImport;
 
-/// @title Controls the distribution of Cacaos
+/// @title Abstract contract that controls the distribution of Cacaos
 /// @author 0w3w
 /// @notice 3 distribution keys, the contract needs 2/3 votes in order to distribute the coin. (A multisignature process)
-/// The distribution keys can be replaced by the majority of votes from the other distribution keys.
-/// All the distribution keys can be reset in batch by the majority of votes from the Creation Keys.
-/// Just one expedition key can cancel the creation of the coin.
-contract CacaoDistribution {    
+/// Only one process per address
+contract CacaoDistribution {
+    using CacaoDistributionCacaoLibraryImport.CacaoLibrary for uint256;
+    using CacaoDistributionSafeMathImport.SafeMath for uint256;
+
     // Total distribution
     uint256 public cacaosInCirculation = 0;
+    // The ammount of votes needed to be considered a majority
+    uint8 constant private _votesMajority = 2;
+
+    // Structure that will save the distribution process for a given address.
+    struct DistributionMetadata {
+        uint256 ammount;
+        uint8 votesInFavor;
+        uint8 votesAgainst;
+        address[] alreadyVoted;
+        bool isActive;
+    }
+
+    // Stores the mapping between addresses to distributes and DistributionMetadata
+    mapping (address => DistributionMetadata) private _transactions;
+
+    /// @notice Methods decorated with this will only be able to be executed when
+    /// the function isValidCreationAddress returns true for the msg.sender.
+    modifier requireValidDistributionAddress() {
+        require(isValidDistributionAddress(msg.sender));
+        _;
+    }
 
     /*
         DISTRIBUTION
         - Start Distribution
-        - Confirm Distribution
-        - Cancel Distribution
-        - Get
+        - Vote Distribution
     */
+    
+    /// @notice Whether the _address can distribute cacaos or not
+    /// @dev Abstract Method
+    /// @param _address The address to verify
+    /// @return True if it can
+    function isValidDistributionAddress(address _address) internal returns (bool _isValid);
+    
+    /// @notice Called when cacaos are being distributed for a given address
+    /// @dev Abstract Method
+    /// @param _to The address to send cacaos
+    /// @param _ammount The ammount of cacaos to distribute
+    function distribute(address _to, uint256 _ammount) internal;
 
     /// @notice Will start the process to issue cacaos.
     /// @dev Will fail if:
-    /// - The contract is not initialized.
     /// - The msg.sender is not an authorized distributor.
+    /// - The _ammount is invalid.
+    /// - There's no active process for that address
+    /// @param _to The address to send cacaos to.
+    /// @param _ammount The ammount of cacaos to issue.
+    function startDistribution(address _to, uint256 _ammount) external requireValidDistributionAddress() {
+        _ammount.requireValidAmmount();
+        require(!_transactions[_to].isActive);
+        _transactions[_to].ammount = _ammount;
+        _transactions[_to].votesInFavor = 1;
+        _transactions[_to].votesAgainst = 0;
+        delete _transactions[_to].alreadyVoted;
+        _transactions[_to].alreadyVoted.push(msg.sender);
+        _transactions[_to].isActive = true;
+    }
+
+    /// @notice Generates a vote to distribute cacao
+    /// @dev The contract needs a majority of votes in favor in order to cacao to be distributed.
+    /// Once the majority of the votes in favor are submitted, the coin will be distributed and the process will be marked as finalized.
+    /// Once the majority of the votes against are submitted, the process will be marked as finalized.
+   /// @dev This method will fail if:
+    /// - There is no ongoing distributed process.
+    /// - The msg.sender is not a valid distributed address.
+    /// - The msg.sender has already voted
     /// - The _ammount is greater than the CacaoCreation::cacaosInLimbo.
-    /// @param _ammount The ammount of cacaos to Issue.
-    function startDistribution(address _to, uint256 _ammount) external returns (bool distributed);
+    /// @param _to The address to send cacaos to.
+    /// @param _vote True: in favor, False: against.
+    /// @return True if the process is finalized.
+    function confirmCreation(address _to, bool _vote) external requireValidDistributionAddress() returns (bool _finalized) {
+        DistributionMetadata storage _transaction = _transactions[_to];
+        // Verify there is an ongoing process
+        require(_transaction.isActive);
+        // Verify the address has not voted already
+        for (uint i = 0; i < _transaction.alreadyVoted.length; i++) {
+            require(_transaction.alreadyVoted[i] != msg.sender);
+        }
+        _transaction.alreadyVoted.push(msg.sender);
+        // Vote
+        if(_vote) {
+            _transaction.votesInFavor++;
+        }
+        else {
+            _transaction.votesAgainst++;
+        }
+        // Was majority achieved?
+        bool majorityAchieved = false;
+        if(_transaction.votesInFavor >= _votesMajority) {
+            majorityAchieved = true;
+            distribute(_to, _transaction.ammount);
+            cacaosInCirculation = cacaosInCirculation.add(_transaction.ammount);
+            emit Distributed(_to, _transaction.ammount);
+        }
+        else if (_transaction.votesAgainst  >= _votesMajority) {
+            majorityAchieved = true;
+        }
+        // Process completed, clean
+        if(majorityAchieved) {
+            _transaction.ammount = 0;
+            _transaction.votesInFavor = 0;
+            _transaction.votesAgainst = 0;
+            delete _transaction.alreadyVoted;
+            _transaction.isActive = false;
+        }
+        return majorityAchieved;
+    }
+
+    /// @notice Triggers when cacaos are distributed
+    /// @param _to The address of the recipient
+    /// @param _ammount The ammount of cacaos
+    event Distributed(address _to, uint256 _ammount);
 }
