@@ -1,14 +1,14 @@
 pragma solidity ^0.4.21;
-import "./CacaoLibrary.sol" as CacaoDistributionCacaoLibraryImport;
-import "./SafeMath.sol" as CacaoDistributionSafeMathImport;
+import "./CacaoLibrary.sol";
+import "./SafeMath.sol";
 
 /// @title Abstract contract that controls the distribution of Cacaos
 /// @author 0w3w
-/// @notice 3 distribution keys, the contract needs 2/3 votes in order to distribute the coin. (A multisignature process)
+/// @notice 3 distribution keys, the contract needs 2/3 votes in order to distribute the coin. (A multi signature process)
 /// Only one process per address
 contract CacaoDistribution {
-    using CacaoDistributionCacaoLibraryImport.CacaoLibrary for uint256;
-    using CacaoDistributionSafeMathImport.SafeMath for uint256;
+    using CacaoLibrary for uint256;
+    using SafeMath for uint256;
 
     // Total distribution
     uint256 public cacaosInCirculation = 0;

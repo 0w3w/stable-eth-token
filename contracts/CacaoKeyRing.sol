@@ -20,8 +20,8 @@ contract CacaoKeyRing {
     // Replacement process state variables
     address private _oldAddress;
     address private _newAddress;
-    uint8 private _replacementVotesInFavor;
-    uint8 private _replacementVotesAgainst;
+    uint8 private _replacementVotesInFavor = 0;
+    uint8 private _replacementVotesAgainst = 0;
     address[] _replacementAddressVoted;
 
     /// @notice Methods decorated with this will only be able to be executed when the contract is initialized.

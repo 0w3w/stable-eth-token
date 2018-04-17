@@ -1,22 +1,22 @@
 pragma solidity ^0.4.21;
-import "./CacaoLibrary.sol" as CacaoCreationCacaoLibraryImport;
-import "./SafeMath.sol" as CacaoCreationSafeMathImport;
+import "./CacaoLibrary.sol";
+import "./SafeMath.sol";
 
 /// @title Abstract contract that controls the creation of Cacaos
 /// @author 0w3w
-/// @notice 5 creation addresses, the contract needs a mayority of votes from this addresses in order to create Cacaos. (A multisignature process)
+/// @notice 5 creation addresses, the contract needs a majority of votes from this addresses in order to create Cacaos. (A multisignature process)
 /// The creation addresses are unique to the contract and can be replaced by a vote from the majority.
 contract CacaoCreation {
-    using CacaoCreationCacaoLibraryImport.CacaoLibrary for uint256;
-    using CacaoCreationSafeMathImport.SafeMath for uint256;
+    using CacaoLibrary for uint256;
+    using SafeMath for uint256;
 
     // The created cacaos go to the "Limbo", an intermediate state between creation and distribution.
     uint256 public cacaosInLimbo = 0;
     
     // Creation process state variables
-    uint256 private _ammountToCreate;
-    uint8 private _creationVotesInFavor;
-    uint8 private _creationVotesAgainst;
+    uint256 private _ammountToCreate = 0;
+    uint8 private _creationVotesInFavor = 0;
+    uint8 private _creationVotesAgainst = 0;
     address[] _creationAddressVoted;
     uint8 constant private _creationMajority = 3;
 
@@ -41,7 +41,7 @@ contract CacaoCreation {
 
     /// @notice Whether there is an active creation process or not
     /// @return True if there is an active process
-    function isCreating() internal view returns (bool result){
+    function isCreating() public view returns (bool result) {
         return (_creationVotesInFavor > 0); // Creation starts with at least one vote in favor
     }
 
@@ -96,7 +96,7 @@ contract CacaoCreation {
             cacaosInLimbo = cacaosInLimbo.add(_ammountToCreate);
             emit Created(_ammountToCreate);
         }
-        else if (_creationVotesAgainst  >= _creationMajority) {
+        else if (_creationVotesAgainst >= _creationMajority) {
             majorityAchieved = true;
         }
         // Process completed, clean

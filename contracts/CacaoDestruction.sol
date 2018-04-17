@@ -1,13 +1,13 @@
 pragma solidity ^0.4.21;
-import "./CacaoLibrary.sol" as CacaoDestructionCacaoLibraryImport;
-import "./SafeMath.sol" as CacaoDestructionSafeMathImport;
+import "./CacaoLibrary.sol";
+import "./SafeMath.sol";
 
 /// @title Abstract contract that controls the destruction of Cacaos
 /// @author 0w3w
 contract CacaoDestruction {
 
-    using CacaoDestructionCacaoLibraryImport.CacaoLibrary for uint256;
-    using CacaoDestructionSafeMathImport.SafeMath for uint256;
+    using CacaoLibrary for uint256;
+    using SafeMath for uint256;
 
     // The total ammount of cacaos burned
     uint256 public cacaosBurned = 0;

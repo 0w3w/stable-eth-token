@@ -1,5 +1,5 @@
 pragma solidity ^0.4.21;
-import "./CacaoLibrary.sol" as CacaoLibraryImport;
+import "./CacaoLibrary.sol";
 import "./StandardToken.sol";
 import "./CacaoKeyRing.sol";
 import "./CacaoCreation.sol";
@@ -11,8 +11,7 @@ import "./Freezable.sol";
 /// @title Cacao Contract
 /// @author 0w3w
 contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution, CacaoDestruction, CacaoRescue, Freezable {
-
-    using CacaoLibraryImport.CacaoLibrary for uint256;
+    using CacaoLibrary for uint256;
 
     function Cacao(
         address _creatorAddress1,
