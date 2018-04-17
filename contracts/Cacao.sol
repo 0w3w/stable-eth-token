@@ -43,24 +43,24 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     }
 
     function transfer(address _to, uint256 _value) public notFrozen returns (bool) {
-      _value.requireValidAmmount();
-      return super.transfer(_to, _value);
+        _value.requireValidAmmount();
+        return super.transfer(_to, _value);
     }   
     function transferFrom(address _from, address _to, uint256 _value) public notFrozen returns (bool) {
-      _value.requireValidAmmount();
-      return super.transferFrom(_from, _to, _value);
+        _value.requireValidAmmount();
+        return super.transferFrom(_from, _to, _value);
     }   
     function approve(address _spender, uint256 _value) public notFrozen returns (bool) {
-      _value.requireValidAmmount();
-      return super.approve(_spender, _value);
+        _value.requireValidAmmount();
+        return super.approve(_spender, _value);
     }   
     function increaseApproval(address _spender, uint256 _addedValue) public notFrozen returns (bool success) {
-      _addedValue.requireValidAmmount();
-      return super.increaseApproval(_spender, _addedValue);
+        _addedValue.requireValidAmmount();
+        return super.increaseApproval(_spender, _addedValue);
     }   
     function decreaseApproval(address _spender, uint256 _subtractedValue) public notFrozen returns (bool success) {
-      _subtractedValue.requireValidAmmount();
-      return super.decreaseApproval(_spender, _subtractedValue);
+        _subtractedValue.requireValidAmmount();
+        return super.decreaseApproval(_spender, _subtractedValue);
     }
 
     /*
@@ -84,15 +84,6 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         balances[_to] = balances[_to].add(_ammount);
         emit Transfer(address(this), _to, _ammount);
     }
-
-    /*
-        Freezable
-    */
-
-    function canFreeze(address _address) internal returns (bool result) {
-        return isDistributor(_address);
-    }
-
     /*
         CacaoDestruction
     */
@@ -116,21 +107,47 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     }
 
     /*
+        CacaoRescue
+    */
+
+    // TODO: IMPROVE THIS, THIS IS NOT FINAL
+    function onRescueCacaos(address _address) internal returns (uint256 ammount) {
+        uint256 ammountToRescue = balances[_address];
+        //require(isOldEnough(_address));
+        balances[_address] = 0;
+        cacaosInCirculation = cacaosInCirculation.sub(ammountToRescue);
+        emit Transfer(_address, address(0), ammountToRescue);
+        return ammountToRescue;
+    }
+    
+    function isValidRescuerAddress(address _address) internal returns (bool result) {
+        return isCreator(_address);
+    }
+
+    /*
+        Freezable
+    */
+
+    function canFreeze(address _address) internal returns (bool result) {
+        return isDistributor(_address);
+    }
+
+    /*
         Other
     */
 
     /// @notice Enable withdrawal of other tokens (by airdrop, forks maybe?)
     /// @param _tokenContract The token contract address to withdraw tokens from.
     /// @param _to The address of the recipient
-     function withdrawExternalTokens(address _tokenContract, address _to) public onlyCreator() returns (bool) {
-         ERC20Basic token = ERC20Basic(_tokenContract);
-         uint256 amount = token.balanceOf(address(this));
-         return token.transfer(_to, amount);
-     }
+    function withdrawExternalTokens(address _tokenContract, address _to) public onlyCreator() returns (bool) {
+        ERC20Basic token = ERC20Basic(_tokenContract);
+        uint256 amount = token.balanceOf(address(this));
+        return token.transfer(_to, amount);
+    }
 
     /// @notice Enable withdrawal of any Ether randomly assigned to this account (by mining, forks maybe?)
     /// @param _to The address of the recipient
-     function withdrawEther(address _to) public onlyCreator() {
+    function withdrawEther(address _to) public onlyCreator() {
         _to.transfer(address(this).balance);
-     }
+    }
 }

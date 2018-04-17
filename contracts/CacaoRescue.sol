@@ -9,18 +9,25 @@ contract CacaoRescue {
 
     /// @notice Modifier to make a function callable only by a valid sender, who can generate references
     modifier senderCanRescueCacaos(){
-        require(canGenerateDestructionReference(msg.sender));
+        require(isValidRescuerAddress(msg.sender));
         _;
     }
 
     /// @notice Will rescue lost Cacaos
-    /// @dev Will move rescued cacaos to... ? TODO
-    function rescueCacaos(address _address) external senderCanRescueCacaos();
+    /// @param _address The address to rescue Cacaos from.
+    function rescueCacaos(address _address) external senderCanRescueCacaos() {
+        uint256 ammountRescued = onRescueCacaos(_address);
+        emit Rescued(_address, ammountRescued);
+    }
+
+    /// @notice Execute the rescue of cacaos
+    /// @param _address The address to rescue Cacaos from.
+    function onRescueCacaos(address _address) internal returns (uint256 ammount);
 
     /// @notice Validates that the address can rescue Cacaos.
-    /// @param _sender The address to validate.
+    /// @param _address The address to validate.
     /// @return True if the address can rescue Cacaos.
-    function canGenerateDestructionReference(address _sender) internal returns (bool result);
+    function isValidRescuerAddress(address _address) internal returns (bool result);
 
     /// @notice Is fired when cacaos are rescued from accounts with no movement.
     /// @param _account The _account where the cacaos were rescued from.
