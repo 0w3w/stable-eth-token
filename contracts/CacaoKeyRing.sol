@@ -243,17 +243,17 @@ contract CacaoKeyRing {
     /// - The contract is not initialized.
     /// - There is an ongoing replacement process.
     /// - The msg.sender is not an authorized creator.
-    function resetDistributionAddresses(
-        address _distributionAddress1,
-        address _distributionAddress2,
-        address _distributionAddress3) external isInitialized()  whenNotReplacing() {
-        // TODO
-        revert();
-    }
+    //function resetDistributionAddresses(
+    //    address _distributionAddress1,
+    //    address _distributionAddress2,
+    //    address _distributionAddress3) external isInitialized()  whenNotReplacing() {
+    //    // TODO
+    //    revert();
+    //}
 
-    /// @notice Generates a vote to batch reset the distribution addresses
-    function voteToResetDistributionAddresses(bool _vote) external isInitialized() returns (bool _success) {
-        // TODO
-        revert();
-    }
+    ///// @notice Generates a vote to batch reset the distribution addresses
+    //function voteToResetDistributionAddresses(bool _vote) external isInitialized() returns (bool _success) {
+    //    // TODO
+    //    revert();
+    //}
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 /// @title Basic Ethereum ERC20 Token standard
 /// @author https://github.com/OpenZeppelin/

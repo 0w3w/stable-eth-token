@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 library CacaoLibrary {
     /// @notice Confirm valid operation ammount, throws if value is less than 1 finney.
