@@ -106,7 +106,7 @@ contract CacaoDistribution {
             cacaosInCirculation = cacaosInCirculation.add(_transaction.ammount);
             emit Distributed(_to, _transaction.ammount);
         }
-        else if (_transaction.votesAgainst  >= _votesMajority) {
+        else if (_transaction.votesAgainst >= _votesMajority) {
             majorityAchieved = true;
         }
         // Process completed, clean

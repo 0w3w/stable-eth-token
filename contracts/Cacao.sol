@@ -13,7 +13,7 @@ import "./Freezable.sol";
 contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution, CacaoDestruction, CacaoRescue, Freezable {
     using CacaoLibrary for uint256;
 
-    function Cacao(
+    function Cacao (
         address _creatorAddress1,
         address _creatorAddress2,
         address _creatorAddress3,
@@ -26,7 +26,16 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         _name = "Cacao";
         _decimals = 3;
         _totalSupply = 0;
-        initializeAddresses(msg.sender, _creatorAddress1, _creatorAddress2, _creatorAddress3, _creatorAddress4, _distributionAddress1, _distributionAddress2, _distributionAddress3);
+        initializeAddresses(
+            msg.sender,
+            _creatorAddress1,
+            _creatorAddress2,
+            _creatorAddress3,
+            _creatorAddress4,
+            _distributionAddress1,
+            _distributionAddress2,
+            _distributionAddress3
+        );
     }
 
     /// @notice The fallback funtion is disabled.
@@ -39,26 +48,31 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     */
 
     function totalSupply() public view returns (uint256) {
-        return cacaosInLimbo + cacaosInCirculation + cacaosInPurgatory;
+        return cacaosInLimbo + cacaosInCirculation + cacaosInPurgatory + cacaosInHell;
     }
 
     function transfer(address _to, uint256 _value) public notFrozen returns (bool) {
+        registerTransaction();
         _value.requireValidAmmount();
         return super.transfer(_to, _value);
     }   
     function transferFrom(address _from, address _to, uint256 _value) public notFrozen returns (bool) {
+        registerTransaction();
         _value.requireValidAmmount();
         return super.transferFrom(_from, _to, _value);
     }   
     function approve(address _spender, uint256 _value) public notFrozen returns (bool) {
+        registerTransaction();
         _value.requireValidAmmount();
         return super.approve(_spender, _value);
     }   
     function increaseApproval(address _spender, uint256 _addedValue) public notFrozen returns (bool success) {
+        registerTransaction();
         _addedValue.requireValidAmmount();
         return super.increaseApproval(_spender, _addedValue);
     }   
     function decreaseApproval(address _spender, uint256 _subtractedValue) public notFrozen returns (bool success) {
+        registerTransaction();
         _subtractedValue.requireValidAmmount();
         return super.decreaseApproval(_spender, _subtractedValue);
     }
@@ -76,6 +90,7 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     */
 
     function isValidDistributionAddress(address _address) internal returns (bool _isValid) {
+        require(!isReplacingAddresses());
         return isDistributor(_address);
     }
     
@@ -102,7 +117,8 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         super.obliterate(_ammount);
     }
 
-    function canGenerateDestructionReference(address _sender) internal notFrozen returns (bool result){
+    function canDestruct(address _sender) internal notFrozen returns (bool result) {
+        require(!isReplacingAddresses());
         return isDistributor(_sender);
     }
 
@@ -110,18 +126,21 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         CacaoRescue
     */
 
-    // TODO: IMPROVE THIS, THIS IS NOT FINAL
     function onRescueCacaos(address _address) internal returns (uint256 ammount) {
-        uint256 ammountToRescue = balances[_address];
-        //require(isOldEnough(_address));
+        uint256 rescuedAmmount = balances[_address];
         balances[_address] = 0;
-        cacaosInCirculation = cacaosInCirculation.sub(ammountToRescue);
-        emit Transfer(_address, address(0), ammountToRescue);
-        return ammountToRescue;
+        cacaosInCirculation = cacaosInCirculation.sub(rescuedAmmount);
+        emit Transfer(_address, address(0), rescuedAmmount);
+        return rescuedAmmount;
+    }
+
+    function onObliterateCacaos(uint256 _ammount) internal {
+        emit Obliterated(_ammount);
     }
     
     function isValidRescuerAddress(address _address) internal returns (bool result) {
-        return isCreator(_address);
+        require(!isReplacingAddresses());
+        return isDistributor(_address);
     }
 
     /*

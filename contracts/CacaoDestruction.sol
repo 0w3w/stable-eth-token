@@ -33,14 +33,15 @@ contract CacaoDestruction {
         _;
     }
 
-    /// @notice Modifier to make a function callable only by a valid sender, who can generate references
-    modifier senderCanGenerateReference(){
-        require(canGenerateDestructionReference(msg.sender));
+    /// @notice Modifier to make a function callable only by a valid sender
+    /// Who can generate references and obliterate cacaos
+    modifier senderCanDestruct(){
+        require(canDestruct(msg.sender));
         _;
     }
 
     /// @notice Will generate a reference that will allow users to burn cacao.
-    function generateDestructionReference(string reference) external senderCanGenerateReference() {
+    function generateDestructionReference(string reference) external senderCanDestruct() {
         require(!_references[reference].isTaken);
         _references[reference].isTaken = true;
         _references[reference].isUsed = false;
@@ -59,7 +60,7 @@ contract CacaoDestruction {
     /// @notice Will completely obliterate the _ammount of cacaos from existence.
     /// @dev Will decrease _ammount from the cacaosInPurgatory.
     /// @param _ammount The ammount of cacaos to obliterate.
-    function obliterate(uint256 _ammount) public { 
+    function obliterate(uint256 _ammount) public senderCanDestruct() { 
         cacaosInPurgatory = cacaosInPurgatory.sub(_ammount);
         emit Obliterated(_ammount);
     }
@@ -67,7 +68,7 @@ contract CacaoDestruction {
     /// @notice Validates that the address can generate desctruction references
     /// @param _sender The address to validate.
     /// @return True if the address can generate desctruction references
-    function canGenerateDestructionReference(address _sender) internal returns (bool result);
+    function canDestruct(address _sender) internal returns (bool result);
 
     /*
         Events

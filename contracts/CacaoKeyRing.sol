@@ -166,6 +166,7 @@ contract CacaoKeyRing {
     function replaceAddress(address _originalAddress, address _proposedAddress) external isInitialized() whenNotReplacing() {
         AddressMetadata storage _originalAddressMetadata = _keyring[_originalAddress];
         requireReplacementPermissions(_originalAddressMetadata);
+        require(!_keyring[_proposedAddress].isCreation && !_keyring[_proposedAddress].isDistribution);
         // Start the replacement process
         _oldAddress = _originalAddress;
         _newAddress = _proposedAddress;

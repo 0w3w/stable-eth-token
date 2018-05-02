@@ -1,28 +1,67 @@
 pragma solidity ^0.4.21;
+import "./SafeMath.sol";
 
 /// @title Controls the rescue of lost Cacaos
-/// @notice Cacaos are considered lost after 3 years of no account movement
+/// @notice Cacaos are considered lost after 5 years of no account movement
 /// which in solidity translates to no interaction with the contract after N blocks.
-/// Where N is calculated with an AVG of 6000 blocks per day ~= 2,190,000 year ~= 6,570,000 three years
+/// Where N is calculated with an AVG of 6000 blocks per day ~= 2,190,000 year ~= 10,950,000 five years
 /// @author 0w3w
 contract CacaoRescue {
+    using SafeMath for uint256;
 
-    /// @notice Modifier to make a function callable only by a valid sender, who can generate references
+    // Cacaos are considered lost after N years of no account movement, which translates to a block threshold from last transaction
+    uint256 public blockThreshold = 10950000;
+    
+    // The total ammount of cacaos rescued
+    uint256 public cacaosRescued = 0;
+
+    // The rescued cacaos go to the "hell", a place in which pious people (who lost their keys) cacao's continue to exist
+    // before being obliterated from existence. (a.k.a. removing them from the public bank accounts to maintain parity) 
+    uint256 public cacaosInHell = 0;
+
+    // Stores the mapping between addresses and LastTransactionMetadata
+    mapping (address => uint) private _lastMovements;
+
+    /// @notice Modifier to make a function callable only by a valid sender
     modifier senderCanRescueCacaos(){
         require(isValidRescuerAddress(msg.sender));
         _;
     }
 
+    /// @notice Will log the blocknumber of the transaction
+    /// Use this to send a keep alive signal and prevent the cacao address to be rescued.
+    function registerTransaction() public {
+        _lastMovements[msg.sender] = block.number;
+    }
+
     /// @notice Will rescue lost Cacaos
     /// @param _address The address to rescue Cacaos from.
     function rescueCacaos(address _address) external senderCanRescueCacaos() {
+        require(blockThreshold <= block.number);
+        uint256 transactionBlockThreshold = block.number.sub(blockThreshold);
+        require(_lastMovements[_address] <= transactionBlockThreshold);
         uint256 ammountRescued = onRescueCacaos(_address);
+        cacaosRescued.add(ammountRescued);
+        cacaosInHell.add(ammountRescued);
         emit Rescued(_address, ammountRescued);
+    }    
+
+    /// @notice Will completely obliterate the _ammount of cacaos from existence.
+    /// @dev Will decrease _ammount from the cacaosInHell.
+    /// @param _ammount The ammount of cacaos to obliterate.
+    function obliterateRescuedCacaos(uint256 _ammount) public senderCanRescueCacaos() {
+        require(_ammount <= cacaosInHell);
+        cacaosInHell = cacaosInHell.sub(_ammount);
+        onObliterateCacaos(_ammount);
     }
 
     /// @notice Execute the rescue of cacaos
     /// @param _address The address to rescue Cacaos from.
     function onRescueCacaos(address _address) internal returns (uint256 ammount);
+
+    /// @notice Execute the obliteration of cacaos
+    /// @param _ammount The amount of obliterated cacaos.
+    function onObliterateCacaos(uint256 _ammount) internal;
 
     /// @notice Validates that the address can rescue Cacaos.
     /// @param _address The address to validate.
