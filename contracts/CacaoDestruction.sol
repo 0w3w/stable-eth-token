@@ -50,29 +50,38 @@ contract CacaoDestruction {
     /// @notice Will destroy the _ammount of cacaos.
     /// @dev Will decrease _ammount from the msg.sender cacao balance and increase the _ammount in cacaosInPurgatory,
     /// @param _ammount The ammount of cacaos to burn.
-    function burn(uint256 _ammount, string reference) public validReference(reference) {
-        _references[reference].isUsed = true;
+    /// @param _reference A valid reference that will allow users to burn cacao.
+    function burn(uint256 _ammount, string _reference) external validReference(_reference) {
+        onBurn(_ammount);
+        _references[_reference].isUsed = true;
         cacaosInPurgatory = cacaosInPurgatory.add(_ammount);
         cacaosBurned = cacaosBurned.add(_ammount);
-        emit Burned(msg.sender, _ammount, reference);
+        emit Burned(msg.sender, _ammount, _reference);
     }
 
     /// @notice Will completely obliterate the _ammount of cacaos from existence.
     /// @dev Will decrease _ammount from the cacaosInPurgatory.
     /// @param _ammount The ammount of cacaos to obliterate.
-    function obliterate(uint256 _ammount) public senderCanDestruct() { 
+    function obliterate(uint256 _ammount) public senderCanDestruct() {
+        onObliterate();
         cacaosInPurgatory = cacaosInPurgatory.sub(_ammount);
         emit Obliterated(_ammount);
     }
 
     /// @notice Validates that the address can generate desctruction references
+    /// @dev Abstract Method
     /// @param _sender The address to validate.
     /// @return True if the address can generate desctruction references
     function canDestruct(address _sender) internal returns (bool result);
 
-    /*
-        Events
-    */  
+    /// @notice Called when cacaos are being burned
+    /// @dev Abstract Method
+    /// @param _ammount The ammount of cacaos to burn
+    function onBurn(uint256 _ammount) internal;
+
+    /// @notice Called when cacaos are being obliterated
+    /// @dev Abstract Method
+    function onObliterate() internal;
 
     /// @notice Is fired when an account burn cacaos.
     /// @param _ammount The ammount of burned cacaos.

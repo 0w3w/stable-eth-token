@@ -30,7 +30,7 @@ contract CacaoDistribution {
     /// @notice Methods decorated with this will only be able to be executed when
     /// the function isValidCreationAddress returns true for the msg.sender.
     modifier requireValidDistributionAddress() {
-        require(isValidDistributionAddress(msg.sender));
+        require(canDistribute(msg.sender));
         _;
     }
 
@@ -39,18 +39,6 @@ contract CacaoDistribution {
         - Start Distribution
         - Vote Distribution
     */
-    
-    /// @notice Whether the _address can distribute cacaos or not
-    /// @dev Abstract Method
-    /// @param _address The address to verify
-    /// @return True if it can
-    function isValidDistributionAddress(address _address) internal returns (bool _isValid);
-    
-    /// @notice Called when cacaos are being distributed for a given address
-    /// @dev Abstract Method
-    /// @param _to The address to send cacaos
-    /// @param _ammount The ammount of cacaos to distribute
-    function distribute(address _to, uint256 _ammount) internal;
 
     /// @notice Will start the process to issue cacaos.
     /// @dev Will fail if:
@@ -74,7 +62,7 @@ contract CacaoDistribution {
     /// @dev The contract needs a majority of votes in favor in order to cacao to be distributed.
     /// Once the majority of the votes in favor are submitted, the coin will be distributed and the process will be marked as finalized.
     /// Once the majority of the votes against are submitted, the process will be marked as finalized.
-   /// @dev This method will fail if:
+    /// @dev This method will fail if:
     /// - There is no ongoing distributed process.
     /// - The msg.sender is not a valid distributed address.
     /// - The msg.sender has already voted
@@ -102,7 +90,7 @@ contract CacaoDistribution {
         bool majorityAchieved = false;
         if(_transaction.votesInFavor >= _votesMajority) {
             majorityAchieved = true;
-            distribute(_to, _transaction.ammount);
+            onDistribute(_to, _transaction.ammount);
             cacaosInCirculation = cacaosInCirculation.add(_transaction.ammount);
             emit Distributed(_to, _transaction.ammount);
         }
@@ -119,6 +107,18 @@ contract CacaoDistribution {
         }
         return majorityAchieved;
     }
+    
+    /// @notice Whether the _address can distribute cacaos or not
+    /// @dev Abstract Method
+    /// @param _address The address to verify
+    /// @return True if it can
+    function canDistribute(address _address) internal returns (bool _isValid);
+    
+    /// @notice Called when cacaos are being distributed for a given address
+    /// @dev Abstract Method
+    /// @param _to The address to send cacaos
+    /// @param _ammount The ammount of cacaos to distribute
+    function onDistribute(address _to, uint256 _ammount) internal;
 
     /// @notice Triggers when cacaos are distributed
     /// @param _to The address of the recipient

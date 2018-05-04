@@ -33,9 +33,9 @@ contract CacaoCreation {
     }
 
     /// @notice Methods decorated with this will only be able to be executed when
-    /// the function isValidCreationAddress returns true for the msg.sender.
+    /// the function canCreate returns true for the msg.sender.
     modifier requireValidCreationAddress() {
-        require(isValidCreationAddress(msg.sender));
+        require(canCreate(msg.sender));
         _;
     }
 
@@ -44,12 +44,6 @@ contract CacaoCreation {
     function isCreating() public view returns (bool result) {
         return (_creationVotesInFavor > 0); // Creation starts with at least one vote in favor
     }
-
-    /// @notice Whether the _address can create cacaos or not
-    /// @dev Abstract Method
-    /// @param _address The address to verify
-    /// @return True if it can
-    function isValidCreationAddress(address _address) internal returns (bool _isValid);
 
     /// @notice Starts the creation process and executes the first vote in favor.
     /// @dev This method will fail if:
@@ -120,6 +114,12 @@ contract CacaoCreation {
         require(cacaosInLimbo <= _ammount);
         cacaosInLimbo = cacaosInLimbo.sub(_ammount);
     }
+
+    /// @notice Whether the _address can create cacaos or not
+    /// @dev Abstract Method
+    /// @param _address The address to verify
+    /// @return True if it can
+    function canCreate(address _address) internal returns (bool _isValid);
 
     /// @notice Triggers when cacaos are created.
     /// @param _ammount The ammount of created cacaos.

@@ -81,7 +81,7 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         CacaoCreation
     */
 
-    function isValidCreationAddress(address _address) internal notFrozen returns (bool _isValid) {
+    function canCreate(address _address) internal notFrozen returns (bool _isValid) {
         return isCreator(_address);
     }
 
@@ -89,12 +89,12 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         CacaoDistribution
     */
 
-    function isValidDistributionAddress(address _address) internal returns (bool _isValid) {
+    function canDistribute(address _address) internal returns (bool _isValid) {
         require(!isReplacingAddresses());
         return isDistributor(_address);
     }
     
-    function distribute(address _to, uint256 _ammount) internal {
+    function onDistribute(address _to, uint256 _ammount) internal {
         draw(_ammount);
         balances[_to] = balances[_to].add(_ammount);
         emit Transfer(address(this), _to, _ammount);
@@ -103,30 +103,33 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         CacaoDestruction
     */
 
-    function burn(uint256 _ammount, string reference) public notFrozen {
+    function canDestruct(address _sender) internal notFrozen returns (bool result) {
+        require(!isReplacingAddresses());
+        return isDistributor(_sender);
+    }
+
+    function onBurn(uint256 _ammount) internal notFrozen {
         require(_ammount > 0);
         uint256 fromBalance = balances[msg.sender];
         require(fromBalance >= _ammount);
         balances[msg.sender] = balances[msg.sender].sub(_ammount);
         cacaosInCirculation = cacaosInCirculation.sub(_ammount);
         emit Transfer(msg.sender, address(0), _ammount);
-        super.burn(_ammount, reference);
     }
     
-    function obliterate(uint256 _ammount) onlyDistributor() public notFrozen {
-        super.obliterate(_ammount);
-    }
-
-    function canDestruct(address _sender) internal notFrozen returns (bool result) {
-        require(!isReplacingAddresses());
-        return isDistributor(_sender);
+    function onObliterate() internal onlyDistributor notFrozen {
     }
 
     /*
         CacaoRescue
     */
+    
+    function canRescue(address _address) internal notFrozen returns (bool result) {
+        require(!isReplacingAddresses());
+        return isDistributor(_address);
+    }
 
-    function onRescueCacaos(address _address) internal returns (uint256 ammount) {
+    function onRescue(address _address) internal notFrozen returns (uint256 ammount) {
         uint256 rescuedAmmount = balances[_address];
         balances[_address] = 0;
         cacaosInCirculation = cacaosInCirculation.sub(rescuedAmmount);
@@ -134,13 +137,8 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         return rescuedAmmount;
     }
 
-    function onObliterateCacaos(uint256 _ammount) internal {
+    function onObliterateRescued(uint256 _ammount) internal notFrozen {
         emit Obliterated(_ammount);
-    }
-    
-    function isValidRescuerAddress(address _address) internal returns (bool result) {
-        require(!isReplacingAddresses());
-        return isDistributor(_address);
     }
 
     /*
@@ -158,7 +156,7 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     /// @notice Enable withdrawal of other tokens (by airdrop, forks maybe?)
     /// @param _tokenContract The token contract address to withdraw tokens from.
     /// @param _to The address of the recipient
-    function withdrawExternalTokens(address _tokenContract, address _to) public onlyCreator() returns (bool) {
+    function withdrawExternalTokens(address _tokenContract, address _to) public onlyCreator returns (bool) {
         ERC20Basic token = ERC20Basic(_tokenContract);
         uint256 amount = token.balanceOf(address(this));
         return token.transfer(_to, amount);
@@ -166,7 +164,7 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
 
     /// @notice Enable withdrawal of any Ether randomly assigned to this account (by mining, forks maybe?)
     /// @param _to The address of the recipient
-    function withdrawEther(address _to) public onlyCreator() {
+    function withdrawEther(address _to) public onlyCreator {
         _to.transfer(address(this).balance);
     }
 }
