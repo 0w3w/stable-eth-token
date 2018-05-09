@@ -15,7 +15,7 @@ contract CacaoCreationTest is CacaoCreation {
         Implement Interface
     */
 
-    function isValidCreationAddress(address _address) internal returns (bool _isValid) {
+    function canCreate(address _address) internal returns (bool _isValid) {
         if( _address == address(0)) {
             return _isValidCreator; // Something stupid for the sake of removing the warning.
         }

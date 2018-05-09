@@ -70,7 +70,7 @@ contract CacaoDistribution {
     /// @param _to The address to send cacaos to.
     /// @param _vote True: in favor, False: against.
     /// @return True if the process is finalized.
-    function confirmCreation(address _to, bool _vote) external requireValidDistributionAddress() returns (bool _finalized) {
+    function confirmDistribution(address _to, bool _vote) external requireValidDistributionAddress() returns (bool _finalized) {
         DistributionMetadata storage _transaction = _transactions[_to];
         // Verify there is an ongoing process
         require(_transaction.isActive);
