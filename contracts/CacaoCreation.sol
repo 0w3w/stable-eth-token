@@ -111,7 +111,7 @@ contract CacaoCreation {
     /// @param _ammount The ammount of cacaos to Issue.
     function draw(uint256 _ammount) internal whenNotCreating() {
         _ammount.requireValidAmmount();
-        require(cacaosInLimbo <= _ammount);
+        require(cacaosInLimbo >= _ammount);        
         cacaosInLimbo = cacaosInLimbo.sub(_ammount);
     }
 
