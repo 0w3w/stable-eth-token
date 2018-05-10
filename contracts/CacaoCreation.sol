@@ -51,7 +51,7 @@ contract CacaoCreation {
     /// - The msg.sender is not a valid creation address.
     /// - Invalid amount, should be at least 1 finney.
     /// @param _ammount The ammount of cacaos to issue
-    function startCreation(uint256 _ammount) external whenNotCreating() requireValidCreationAddress() {
+    function startCreation(uint256 _ammount) external whenNotCreating requireValidCreationAddress {
         _ammount.requireValidAmmount();
         _ammountToCreate = _ammount;
         _creationVotesInFavor = 1;
@@ -69,8 +69,7 @@ contract CacaoCreation {
     /// - The msg.sender is not a valid creation address.
     /// - The msg.sender has already voted
     /// @param _vote True: in favor, False: against.
-    /// @return True if the process is finalized.
-    function confirmCreation(bool _vote) external whenCreating() requireValidCreationAddress() returns (bool _finalized) {
+    function confirmCreation(bool _vote) external whenCreating requireValidCreationAddress {
         // Verify the address has not voted already
         for (uint i = 0; i < _creationAddressVoted.length; i++) {
             require(_creationAddressVoted[i] != msg.sender);
@@ -100,7 +99,6 @@ contract CacaoCreation {
             _creationVotesAgainst = 0;
             delete _creationAddressVoted;
         }
-        return majorityAchieved;
     }
 
     /// @notice Decreases the ammount from the available in the limbo.
@@ -109,7 +107,7 @@ contract CacaoCreation {
     /// - The _ammount is greater than the cacaosInLimbo.
     /// - The _ammount is less than .001 CAO
     /// @param _ammount The ammount of cacaos to Issue.
-    function draw(uint256 _ammount) internal whenNotCreating() {
+    function draw(uint256 _ammount) internal whenNotCreating {
         _ammount.requireValidAmmount();
         require(cacaosInLimbo >= _ammount);        
         cacaosInLimbo = cacaosInLimbo.sub(_ammount);

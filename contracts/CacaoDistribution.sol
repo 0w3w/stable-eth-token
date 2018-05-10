@@ -47,7 +47,7 @@ contract CacaoDistribution {
     /// - There's no active process for that address
     /// @param _to The address to send cacaos to.
     /// @param _ammount The ammount of cacaos to issue.
-    function startDistribution(address _to, uint256 _ammount) external requireValidDistributionAddress() {
+    function startDistribution(address _to, uint256 _ammount) external requireValidDistributionAddress {
         _ammount.requireValidAmmount();
         require(!_transactions[_to].isActive);
         _transactions[_to].ammount = _ammount;
@@ -69,8 +69,7 @@ contract CacaoDistribution {
     /// - The _ammount is greater than the CacaoCreation::cacaosInLimbo.
     /// @param _to The address to send cacaos to.
     /// @param _vote True: in favor, False: against.
-    /// @return True if the process is finalized.
-    function confirmDistribution(address _to, bool _vote) external requireValidDistributionAddress() returns (bool _finalized) {
+    function confirmDistribution(address _to, bool _vote) external requireValidDistributionAddress {
         DistributionMetadata storage _transaction = _transactions[_to];
         // Verify there is an ongoing process
         require(_transaction.isActive);
@@ -105,7 +104,6 @@ contract CacaoDistribution {
             delete _transaction.alreadyVoted;
             _transaction.isActive = false;
         }
-        return majorityAchieved;
     }
     
     /// @notice Whether the _address can distribute cacaos or not

@@ -50,19 +50,17 @@ contract StandardToken is ERC20 {
 
     /// @notice Get the token balance for `_owner`
     /// @param _owner The account to get the balance from.
-    function balanceOf(address _owner) public constant returns (uint256) {
+    function balanceOf(address _owner) public view returns (uint256) {
         return balances[_owner];
     }
 
     // Transfer the balance from owner's account to another account
     function transfer(address _to, uint256 _value) public mitigateShortAddressAttack returns (bool success) {
-        if (_value == 0) {
-            return false;
-        }
-        uint256 fromBalance = balances[msg.sender];
-        bool sufficientFunds = fromBalance >= _value;
+        require(_value > 0);
+        require(_to != address(0));
+        require(_value <= balances[msg.sender]);
         bool overflowed = balances[_to] + _value < balances[_to];
-        if (sufficientFunds && !overflowed) {
+        if (!overflowed) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
             emit Transfer(msg.sender, _to, _value);

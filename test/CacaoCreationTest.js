@@ -1,8 +1,14 @@
+import { inTransaction } from './helpers/expectEvent.js';
 const CacaoCreationTest = artifacts.require("CacaoCreationTest");
 const Cacao = artifacts.require("Cacao");
 
-const oneFinneyInWeis = 1000000000000000; // One finney is 0.001, which is the minimum amount of cacao that a user can transact (1 Cent of a MXN), Weis
-const halfFinneyInWeis = 500000000000000;
+const oneFinneyInWeis = web3.toWei(1, "finney"); // One finney is 0.001, which is the minimum initialAmount of cacao that a user can transact (1 Cent of a MXN), Weis
+const halfFinneyInWeis = web3.toWei(.5, "finney");
+
+require('chai')
+  .use(require('chai-as-promised'))
+  .use(require('chai-bignumber')(web3.BigNumber))
+  .should();
 
 async function assertTotalSupply(contractInstance, expectedSupply){
     const totalSupply = await contractInstance.totalSupply();
@@ -59,37 +65,43 @@ contract('Cacao', async (accounts) => {
             accounts[5], accounts[6], accounts[7]); // Distribution Addresses
     });
 
-    it("creates coin", async () => {
+    it("full lifecycle", async () => {
         let initialamountCao = 1000;
         let initialamountFinney = (initialamountCao * oneFinneyInWeis);
         // Start Creation
         assertTotalSupply(contractInstance, 0);
         let isCreating = await contractInstance.isCreating();
         assert(!isCreating, "Contract should not be creating");
-        let result = await contractInstance.startCreation(initialamountFinney, { from: accounts[0] });
+        await contractInstance.startCreation(initialamountFinney, { from: accounts[0] });
         isCreating = await contractInstance.isCreating();
         assert(isCreating, "Contract should be creating");
         assertTotalSupply(contractInstance, 0);
         // ConfirmCreation
-        result = await contractInstance.confirmCreation(true, { from: accounts[1] });        
-        result = await contractInstance.confirmCreation(true, { from: accounts[2] });
+        await contractInstance.confirmCreation(true, { from: accounts[1] });
+        let confirmCreationTask = contractInstance.confirmCreation(true, { from: accounts[2] });
+        let creationEvent = await inTransaction(confirmCreationTask, 'Created');
+        creationEvent.args._ammount.should.be.bignumber.equal(initialamountFinney);
         // Verify Cacaos in Limbo
         isCreating = await contractInstance.isCreating();
         assert.isFalse(isCreating, "Contract should not be creating");
         let cacaosInLimbo = await contractInstance.cacaosInLimbo();
         assert.equal(cacaosInLimbo, initialamountFinney);
         assertTotalSupply(contractInstance, initialamountFinney);
+
         // startDistribution
         let cacaosInCirculation = await contractInstance.cacaosInCirculation();        
         assert.equal(cacaosInCirculation, 0);
         let initialDistributedamount = 100;
         let initialDistributedamountFinney = (initialDistributedamount * oneFinneyInWeis);
-        result = await contractInstance.startDistribution(accounts[8], initialDistributedamountFinney, { from: accounts[5] });
+        await contractInstance.startDistribution(accounts[8], initialDistributedamountFinney, { from: accounts[5] });
         assertTotalSupply(contractInstance, initialamountFinney);
         // confirmDistribution
-        result = await contractInstance.confirmDistribution(accounts[8], true, { from: accounts[6] });
-        //cacaosInCirculation = await contractInstance.cacaosInCirculation();        
-        //assert.equal(cacaosInCirculation, initialDistributedamountFinney);
-        //assertTotalSupply(contractInstance, initialamountFinney);
+        let confirmDistributionTask = contractInstance.confirmDistribution(accounts[8], true, { from: accounts[6] });
+        let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
+        distributionEvent.args._to.should.eq(accounts[8]);
+        distributionEvent.args._ammount.should.be.bignumber.equal(initialDistributedamountFinney);
+        cacaosInCirculation = await contractInstance.cacaosInCirculation();        
+        assert.equal(cacaosInCirculation, initialDistributedamountFinney);
+        assertTotalSupply(contractInstance, initialamountFinney);
    });
 });

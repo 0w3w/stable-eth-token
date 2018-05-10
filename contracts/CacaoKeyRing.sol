@@ -195,8 +195,7 @@ contract CacaoKeyRing {
     /// - The msg.sender is not a valid creation address.
     /// - The msg.sender has already voted.
     /// @param _vote True: in favor, False: against.
-    /// @return True if the process is finalized.
-    function voteToReplaceAddress(bool _vote) external whenAddressReplacing returns (bool _finalized) {
+    function voteToReplaceAddress(bool _vote) external whenAddressReplacing {
         AddressMetadata storage _originalAddressMetadata = _keyring[_oldAddress];
         // Verify the address has not voted already
         for (uint i = 0; i < _replacementAddressVoted.length; i++) {
@@ -246,7 +245,6 @@ contract CacaoKeyRing {
             _replacementVotesAgainst = 0;
             delete _replacementAddressVoted;
         }
-        return majorityAchieved;
     }
 
     /// @notice Start the process for batch reset the distribution addresses.

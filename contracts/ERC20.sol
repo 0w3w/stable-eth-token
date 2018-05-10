@@ -24,8 +24,8 @@ contract ERC20 is ERC20Basic {
     function allowance(address _owner, address _spender) public view returns (uint256 _remaining);
 
     /// @notice Triggers on any successful call to approve(address _spender, uint256 _value).
-    /// @param _owner The address of the account owning tokens
-    /// @param _spender The address of the account able to transfer the tokens
-    /// @param _value The amount of approved tokens
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    /// @param owner The address of the account owning tokens
+    /// @param spender The address of the account able to transfer the tokens
+    /// @param value The amount of approved tokens
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 }

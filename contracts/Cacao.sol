@@ -88,7 +88,7 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         CacaoDistribution
     */
 
-    function canDistribute(address _address) internal returns (bool _isValid) {
+    function canDistribute(address _address) internal notFrozen returns (bool _isValid) {
         require(!isReplacingAddresses());
         return isDistributor(_address);
     }

@@ -34,8 +34,8 @@ contract ERC20Basic {
 
     /// @notice Triggers when tokens are transferred, including zero value transfers.
     /// @dev A token contract which creates new tokens SHOULD trigger a Transfer event with the _from address set to 0x0 when tokens are created.
-    /// @param _from The address of the sender
-    /// @param _to The address of the recipient
-    /// @param _value The amount of token to be transferred
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    /// @param from The address of the sender
+    /// @param to The address of the recipient
+    /// @param value The amount of token to be transferred
+    event Transfer(address indexed from, address indexed to, uint256 value);
 }
