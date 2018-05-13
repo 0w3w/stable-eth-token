@@ -1,4 +1,6 @@
-import { inTransaction } from './helpers/expectEvent.js';
+import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
+import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
+import assertRevert from './helpers/assertRevert.js';
 const CacaoCreationTest = artifacts.require("CacaoCreationTest");
 const Cacao = artifacts.require("Cacao");
 
@@ -10,9 +12,14 @@ require('chai')
   .use(require('chai-bignumber')(web3.BigNumber))
   .should();
 
-async function assertTotalSupply(contractInstance, expectedSupply){
-    const totalSupply = await contractInstance.totalSupply();
-    assert.equal(totalSupply, expectedSupply);
+async function assertIsCreating(contractInstance){
+    let isCreating = await contractInstance.isCreating();
+    assert(isCreating, "Contract should be creating");
+}
+
+async function assertIsNotCreating(contractInstance){
+    let isCreating = await contractInstance.isCreating();
+    assert(!isCreating, "Contract should not be creating");
 }
 
 contract('CacaoCreation', async (accounts) => {
@@ -57,51 +64,128 @@ contract('CacaoCreation', async (accounts) => {
 });
 
 contract('Cacao', async (accounts) => {
-    let contractInstance;
+    let creationAmount = web3.toWei(1, "finney");    
+    let creationAddress = accounts[0];
+    let creationAddress2 = accounts[1];
+    let creationAddress3 = accounts[2];
+    let creationAddress4 = accounts[3];
 
     beforeEach('setup contract for each test', async function () {
-        contractInstance = await Cacao.new(
+        this.token = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
             accounts[5], accounts[6], accounts[7]); // Distribution Addresses
     });
 
-    it("full lifecycle", async () => {
-        let initialamountCao = 1000;
-        let initialamountFinney = (initialamountCao * oneFinneyInWeis);
-        // Start Creation
-        assertTotalSupply(contractInstance, 0);
-        let isCreating = await contractInstance.isCreating();
-        assert(!isCreating, "Contract should not be creating");
-        await contractInstance.startCreation(initialamountFinney, { from: accounts[0] });
-        isCreating = await contractInstance.isCreating();
-        assert(isCreating, "Contract should be creating");
-        assertTotalSupply(contractInstance, 0);
-        // ConfirmCreation
-        await contractInstance.confirmCreation(true, { from: accounts[1] });
-        let confirmCreationTask = contractInstance.confirmCreation(true, { from: accounts[2] });
-        let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-        creationEvent.args._ammount.should.be.bignumber.equal(initialamountFinney);
-        // Verify Cacaos in Limbo
-        isCreating = await contractInstance.isCreating();
-        assert.isFalse(isCreating, "Contract should not be creating");
-        let cacaosInLimbo = await contractInstance.cacaosInLimbo();
-        assert.equal(cacaosInLimbo, initialamountFinney);
-        assertTotalSupply(contractInstance, initialamountFinney);
+    describe('creation lifecycle', function () {
+        it("succeeds", async function () {
+            let initialCreationAmountInWei = web3.toWei(1, "finney");
+            assertIsNotCreating(this.token);
+            assertInLimbo(this.token, 0);
+            assertTotalSupply(this.token, 0);
 
-        // startDistribution
-        let cacaosInCirculation = await contractInstance.cacaosInCirculation();        
-        assert.equal(cacaosInCirculation, 0);
-        let initialDistributedamount = 100;
-        let initialDistributedamountFinney = (initialDistributedamount * oneFinneyInWeis);
-        await contractInstance.startDistribution(accounts[8], initialDistributedamountFinney, { from: accounts[5] });
-        assertTotalSupply(contractInstance, initialamountFinney);
-        // confirmDistribution
-        let confirmDistributionTask = contractInstance.confirmDistribution(accounts[8], true, { from: accounts[6] });
-        let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
-        distributionEvent.args._to.should.eq(accounts[8]);
-        distributionEvent.args._ammount.should.be.bignumber.equal(initialDistributedamountFinney);
-        cacaosInCirculation = await contractInstance.cacaosInCirculation();        
-        assert.equal(cacaosInCirculation, initialDistributedamountFinney);
-        assertTotalSupply(contractInstance, initialamountFinney);
-   });
+            // Start Creation
+            await this.token.startCreation(initialCreationAmountInWei, { from: accounts[0] });
+            assertIsCreating(this.token);
+            assertTotalSupply(this.token, 0);
+
+            // ConfirmCreation
+            await this.token.confirmCreation(true, { from: accounts[1] });
+            let confirmCreationTask = this.token.confirmCreation(true, { from: accounts[2] });
+            let creationEvent = await inTransaction(confirmCreationTask, 'Created');
+            creationEvent.args._ammount.should.be.bignumber.equal(initialCreationAmountInWei);
+
+            assertIsNotCreating(this.token);
+            assertInLimbo(this.token, initialCreationAmountInWei);
+            assertTotalSupply(this.token, initialCreationAmountInWei);
+        });
+    });
+
+    describe('startCreation', function () {        
+        describe('when the sender address is a creation address.', function () {
+            describe('when is a valid amount (greater equal than 0.001 Ether).', function () {      
+                it('starts creation.', async function () {
+                    assertTotalSupply(this.token, 0);
+                    assertIsNotCreating(this.token);
+                    await this.token.startCreation(creationAmount, { from: creationAddress });
+                    assertIsCreating(this.token);
+                    assertTotalSupply(this.token, 0);
+                });
+            });
+            describe('when is an invalid amount (less than 0.001 Ether).', function () {
+                let invalidCreationAmount = web3.toWei(.5, "finney");
+                it('fails.', async function () {
+                    assertTotalSupply(this.token, 0);
+                    assertIsNotCreating(this.token);
+                    await assertRevert(this.token.startCreation(invalidCreationAmount, { from: creationAddress }));
+                });
+            });
+            describe('when theres an ongoing creation.', function () {
+                it('fails.', async function () {
+                    assertTotalSupply(this.token, 0);
+                    assertIsNotCreating(this.token);
+                    await this.token.startCreation(creationAmount, { from: creationAddress });
+                    assertIsCreating(this.token);
+                    assertTotalSupply(this.token, 0);
+                    await assertRevert(this.token.startCreation(creationAmount, { from: creationAddress }));
+                    assertIsCreating(this.token);
+                    assertTotalSupply(this.token, 0);
+                });
+            });
+        });
+        describe('when the sender address is not a creation address.', function () {
+            let invalidCreationAddress = accounts[5]; // Distribution Address instead
+            it('fails.', async function () {
+                await assertRevert(this.token.startCreation(creationAmount, { from: invalidCreationAddress }));
+            });
+        });
+    });
+
+    describe('confirmCreation', function () {        
+        describe('when the sender address is a creation address.', function () {
+            describe('majority has not being achieved.', function () {      
+                it('succeeds and no event is emmited.', async function () {
+                    await this.token.startCreation(creationAmount, { from: creationAddress });
+                    let confirmCreationTask = this.token.confirmCreation(true, { from: creationAddress2 });
+                    await notInTransaction(confirmCreationTask, 'Created');
+                });
+            });
+            describe('majority has being achieved in favor.', function () {
+                it('coin is created and event is emmited.', async function () {
+                    await this.token.startCreation(creationAmount, { from: creationAddress });
+                    await this.token.confirmCreation(true, { from: creationAddress2 });
+                    let confirmCreationTask = this.token.confirmCreation(true, { from: creationAddress3 });
+                    let creationEvent = await inTransaction(confirmCreationTask, 'Created');
+                    creationEvent.args._ammount.should.be.bignumber.equal(creationAmount);
+                    assertIsNotCreating(this.token);
+                    assertInLimbo(this.token, creationAmount);
+                    assertTotalSupply(this.token, creationAmount);
+                });
+            });
+            describe('majority has being achieved against.', function () {      
+                it('coin is created and no event is emmited.', async function () {
+                    await this.token.startCreation(creationAmount, { from: creationAddress });
+                    await this.token.confirmCreation(false, { from: creationAddress2 });
+                    await this.token.confirmCreation(false, { from: creationAddress3 });
+                    let confirmCreationTask = this.token.confirmCreation(false, { from: creationAddress4 });
+                    await notInTransaction(confirmCreationTask, 'Created');
+                    assertIsNotCreating(this.token);
+                    assertInLimbo(this.token, 0);
+                    assertTotalSupply(this.token, 0);
+                });
+            });
+        });
+        describe('when the sender address is not a creation address.', function () {
+            let invalidCreationAddress = accounts[5]; // Distribution Address instead
+            it('fails.', async function () {
+                await this.token.startCreation(creationAmount, { from: creationAddress });
+                await assertRevert(this.token.confirmCreation(true, { from: invalidCreationAddress }));
+            });
+        });
+        describe('when the sender address already voted.', function () {
+            it('fails.', async function () {
+                await this.token.startCreation(creationAmount, { from: creationAddress });
+                await assertRevert(this.token.confirmCreation(true, { from: creationAddress }));
+            });
+        });
+    });
 });
