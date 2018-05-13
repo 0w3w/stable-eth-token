@@ -12,12 +12,12 @@ contract CacaoDistribution {
 
     // Total distribution
     uint256 public cacaosInCirculation = 0;
-    // The ammount of votes needed to be considered a majority
+    // The amount of votes needed to be considered a majority
     uint8 constant private _votesMajority = 2;
 
     // Structure that will save the distribution process for a given address.
     struct DistributionMetadata {
-        uint256 ammount;
+        uint256 amount;
         uint8 votesInFavor;
         uint8 votesAgainst;
         address[] alreadyVoted;
@@ -43,14 +43,14 @@ contract CacaoDistribution {
     /// @notice Will start the process to issue cacaos.
     /// @dev Will fail if:
     /// - The msg.sender is not an authorized distributor.
-    /// - The _ammount is invalid.
+    /// - The _amount is invalid.
     /// - There's an active process for that address
     /// @param _to The address to send cacaos to.
-    /// @param _ammount The ammount of cacaos to issue.
-    function startDistribution(address _to, uint256 _ammount) external requireValidDistributionAddress {
-        _ammount.requireValidAmmount();
+    /// @param _amount The amount of cacaos to issue.
+    function startDistribution(address _to, uint256 _amount) external requireValidDistributionAddress {
+        _amount.requireValidAmount();
         require(!_transactions[_to].isActive);
-        _transactions[_to].ammount = _ammount;
+        _transactions[_to].amount = _amount;
         _transactions[_to].votesInFavor = 1;
         _transactions[_to].votesAgainst = 0;
         delete _transactions[_to].alreadyVoted;
@@ -66,7 +66,7 @@ contract CacaoDistribution {
     /// - There is no ongoing distributed process.
     /// - The msg.sender is not a valid distributed address.
     /// - The msg.sender has already voted
-    /// - The _ammount is greater than the CacaoCreation::cacaosInLimbo.
+    /// - The _amount is greater than the CacaoCreation::cacaosInLimbo.
     /// @param _to The address to send cacaos to.
     /// @param _vote True: in favor, False: against.
     function confirmDistribution(address _to, bool _vote) external requireValidDistributionAddress {
@@ -89,16 +89,16 @@ contract CacaoDistribution {
         bool majorityAchieved = false;
         if(_transaction.votesInFavor >= _votesMajority) {
             majorityAchieved = true;
-            onDistribute(_to, _transaction.ammount);
-            cacaosInCirculation = cacaosInCirculation.add(_transaction.ammount);
-            emit Distributed(_to, _transaction.ammount);
+            onDistribute(_to, _transaction.amount);
+            cacaosInCirculation = cacaosInCirculation.add(_transaction.amount);
+            emit Distributed(_to, _transaction.amount);
         }
         else if (_transaction.votesAgainst >= _votesMajority) {
             majorityAchieved = true;
         }
         // Process completed, clean
         if(majorityAchieved) {
-            _transaction.ammount = 0;
+            _transaction.amount = 0;
             _transaction.votesInFavor = 0;
             _transaction.votesAgainst = 0;
             delete _transaction.alreadyVoted;
@@ -115,11 +115,11 @@ contract CacaoDistribution {
     /// @notice Called when cacaos are being distributed for a given address
     /// @dev Abstract Method
     /// @param _to The address to send cacaos
-    /// @param _ammount The ammount of cacaos to distribute
-    function onDistribute(address _to, uint256 _ammount) internal;
+    /// @param _amount The amount of cacaos to distribute
+    function onDistribute(address _to, uint256 _amount) internal;
 
     /// @notice Triggers when cacaos are distributed
     /// @param _to The address of the recipient
-    /// @param _ammount The ammount of cacaos
-    event Distributed(address _to, uint256 _ammount);
+    /// @param _amount The amount of cacaos
+    event Distributed(address _to, uint256 _amount);
 }

@@ -48,7 +48,7 @@ contract('CacaoCreation', async (accounts) => {
             await this.token.confirmCreation(true, { from: accounts[1] });
             let confirmCreationTask = this.token.confirmCreation(true, { from: accounts[2] });
             let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-            creationEvent.args._ammount.should.be.bignumber.equal(initialCreationAmountInWei);
+            creationEvent.args._amount.should.be.bignumber.equal(initialCreationAmountInWei);
 
             await assertIsNotCreating(this.token);
             await assertInLimbo(this.token, initialCreationAmountInWei);
@@ -113,7 +113,7 @@ contract('CacaoCreation', async (accounts) => {
                         await this.token.confirmCreation(true, { from: creationAddress2 });
                         let confirmCreationTask = this.token.confirmCreation(true, { from: creationAddress3 });
                         let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-                        creationEvent.args._ammount.should.be.bignumber.equal(creationAmount);
+                        creationEvent.args._amount.should.be.bignumber.equal(creationAmount);
                         await assertIsNotCreating(this.token);
                         await assertInLimbo(this.token, creationAmount);
                         await assertTotalSupply(this.token, creationAmount);

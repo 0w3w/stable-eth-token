@@ -14,7 +14,7 @@ contract CacaoCreation {
     uint256 public cacaosInLimbo = 0;
     
     // Creation process state variables
-    uint256 private _ammountToCreate = 0;
+    uint256 private _amountToCreate = 0;
     uint8 private _creationVotesInFavor = 0;
     uint8 private _creationVotesAgainst = 0;
     address[] _creationAddressVoted;
@@ -50,10 +50,10 @@ contract CacaoCreation {
     /// - There is an ongoing creation process.
     /// - The msg.sender is not a valid creation address.
     /// - Invalid amount, should be at least 1 finney.
-    /// @param _ammount The ammount of cacaos to issue
-    function startCreation(uint256 _ammount) external whenNotCreating requireValidCreationAddress {
-        _ammount.requireValidAmmount();
-        _ammountToCreate = _ammount;
+    /// @param _amount The amount of cacaos to issue
+    function startCreation(uint256 _amount) external whenNotCreating requireValidCreationAddress {
+        _amount.requireValidAmount();
+        _amountToCreate = _amount;
         _creationVotesInFavor = 1;
         _creationVotesAgainst = 0;
         delete _creationAddressVoted;
@@ -86,31 +86,31 @@ contract CacaoCreation {
         bool majorityAchieved = false;
         if(_creationVotesInFavor >= _creationMajority) {
             majorityAchieved = true;
-            cacaosInLimbo = cacaosInLimbo.add(_ammountToCreate);
-            emit Created(_ammountToCreate);
+            cacaosInLimbo = cacaosInLimbo.add(_amountToCreate);
+            emit Created(_amountToCreate);
         }
         else if (_creationVotesAgainst >= _creationMajority) {
             majorityAchieved = true;
         }
         // Process completed, clean
         if(majorityAchieved) {
-            _ammountToCreate = 0;
+            _amountToCreate = 0;
             _creationVotesInFavor = 0;
             _creationVotesAgainst = 0;
             delete _creationAddressVoted;
         }
     }
 
-    /// @notice Decreases the ammount from the available in the limbo.
+    /// @notice Decreases the amount from the available in the limbo.
     /// @dev Function that will be called by the distribution contract.
     /// Will fail if:
-    /// - The _ammount is greater than the cacaosInLimbo.
-    /// - The _ammount is less than .001 CAO
-    /// @param _ammount The ammount of cacaos to Issue.
-    function draw(uint256 _ammount) internal whenNotCreating {
-        _ammount.requireValidAmmount();
-        require(cacaosInLimbo >= _ammount);        
-        cacaosInLimbo = cacaosInLimbo.sub(_ammount);
+    /// - The _amount is greater than the cacaosInLimbo.
+    /// - The _amount is less than .001 CAO
+    /// @param _amount The amount of cacaos to Issue.
+    function draw(uint256 _amount) internal whenNotCreating {
+        _amount.requireValidAmount();
+        require(cacaosInLimbo >= _amount);        
+        cacaosInLimbo = cacaosInLimbo.sub(_amount);
     }
 
     /// @notice Whether the _address can create cacaos or not
@@ -120,6 +120,6 @@ contract CacaoCreation {
     function canCreate(address _address) internal returns (bool _isValid);
 
     /// @notice Triggers when cacaos are created.
-    /// @param _ammount The ammount of created cacaos.
-    event Created(uint256 _ammount);
+    /// @param _amount The amount of created cacaos.
+    event Created(uint256 _amount);
 }

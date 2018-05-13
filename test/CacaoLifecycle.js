@@ -37,7 +37,7 @@ contract('Cacao', async (accounts) => {
         await contractInstance.confirmCreation(true, { from: accounts[1] });
         let confirmCreationTask = contractInstance.confirmCreation(true, { from: accounts[2] });
         let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-        creationEvent.args._ammount.should.be.bignumber.equal(initialamountInWei);
+        creationEvent.args._amount.should.be.bignumber.equal(initialamountInWei);
         // Verify Cacaos in Limbo
         isCreating = await contractInstance.isCreating();
         assert.isFalse(isCreating, "Contract should not be creating");
@@ -59,7 +59,7 @@ contract('Cacao', async (accounts) => {
         let confirmDistributionTask = contractInstance.confirmDistribution(initialOwner, true, { from: accounts[6] });
         let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
         distributionEvent.args._to.should.eq(initialOwner);
-        distributionEvent.args._ammount.should.be.bignumber.equal(initialDistributedamountInWei);
+        distributionEvent.args._amount.should.be.bignumber.equal(initialDistributedamountInWei);
         await assertInCirculation(contractInstance, initialDistributedamountInWei);
         await assertTotalSupply(contractInstance, initialamountInWei);
         await assertBalanceOf(contractInstance, initialOwner, initialDistributedamountInWei);

@@ -9,7 +9,7 @@ contract CacaoDestruction {
     using CacaoLibrary for uint256;
     using SafeMath for uint256;
 
-    // The total ammount of cacaos burned
+    // The total amount of cacaos burned
     uint256 public cacaosBurned = 0;
 
     // The burned cacaos go to the "purgatory", an intermediate state in which Cacaos must first "undergo purification"
@@ -47,25 +47,25 @@ contract CacaoDestruction {
         _references[reference].isUsed = false;
     }
 
-    /// @notice Will destroy the _ammount of cacaos.
-    /// @dev Will decrease _ammount from the msg.sender cacao balance and increase the _ammount in cacaosInPurgatory,
-    /// @param _ammount The ammount of cacaos to burn.
+    /// @notice Will destroy the _amount of cacaos.
+    /// @dev Will decrease _amount from the msg.sender cacao balance and increase the _amount in cacaosInPurgatory,
+    /// @param _amount The amount of cacaos to burn.
     /// @param _reference A valid reference that will allow users to burn cacao.
-    function burn(uint256 _ammount, string _reference) external validReference(_reference) {
-        onBurn(_ammount);
+    function burn(uint256 _amount, string _reference) external validReference(_reference) {
+        onBurn(_amount);
         _references[_reference].isUsed = true;
-        cacaosInPurgatory = cacaosInPurgatory.add(_ammount);
-        cacaosBurned = cacaosBurned.add(_ammount);
-        emit Burned(msg.sender, _ammount, _reference);
+        cacaosInPurgatory = cacaosInPurgatory.add(_amount);
+        cacaosBurned = cacaosBurned.add(_amount);
+        emit Burned(msg.sender, _amount, _reference);
     }
 
-    /// @notice Will completely obliterate the _ammount of cacaos from existence.
-    /// @dev Will decrease _ammount from the cacaosInPurgatory.
-    /// @param _ammount The ammount of cacaos to obliterate.
-    function obliterate(uint256 _ammount) public senderCanDestruct() {
+    /// @notice Will completely obliterate the _amount of cacaos from existence.
+    /// @dev Will decrease _amount from the cacaosInPurgatory.
+    /// @param _amount The amount of cacaos to obliterate.
+    function obliterate(uint256 _amount) public senderCanDestruct() {
         onObliterate();
-        cacaosInPurgatory = cacaosInPurgatory.sub(_ammount);
-        emit Obliterated(_ammount);
+        cacaosInPurgatory = cacaosInPurgatory.sub(_amount);
+        emit Obliterated(_amount);
     }
 
     /// @notice Validates that the address can generate desctruction references
@@ -76,18 +76,18 @@ contract CacaoDestruction {
 
     /// @notice Called when cacaos are being burned
     /// @dev Abstract Method
-    /// @param _ammount The ammount of cacaos to burn
-    function onBurn(uint256 _ammount) internal;
+    /// @param _amount The amount of cacaos to burn
+    function onBurn(uint256 _amount) internal;
 
     /// @notice Called when cacaos are being obliterated
     /// @dev Abstract Method
     function onObliterate() internal;
 
     /// @notice Is fired when an account burn cacaos.
-    /// @param _ammount The ammount of burned cacaos.
-    event Burned(address indexed _account, uint256 _ammount, string reference);
+    /// @param _amount The amount of burned cacaos.
+    event Burned(address indexed _account, uint256 _amount, string _reference);
 
     /// @notice Is fired when cacaos are obliterated.
-    /// @param _ammount The ammount of obliterated cacaos.
-    event Obliterated(uint256 _ammount);
+    /// @param _amount The amount of obliterated cacaos.
+    event Obliterated(uint256 _amount);
 }

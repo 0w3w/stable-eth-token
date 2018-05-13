@@ -53,35 +53,35 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     function transfer(address _to, uint256 _value) public notFrozen returns (bool) {
         registerTransaction();
         if (_value != 0) {
-            _value.requireValidAmmount();
+            _value.requireValidAmount();
         }
         return super.transfer(_to, _value);
     }   
     function transferFrom(address _from, address _to, uint256 _value) public notFrozen returns (bool) {
         registerTransaction();
         if (_value != 0) {
-            _value.requireValidAmmount();
+            _value.requireValidAmount();
         }
         return super.transferFrom(_from, _to, _value);
     }   
     function approve(address _spender, uint256 _value) public notFrozen returns (bool) {
         registerTransaction();
         if (_value != 0) {
-            _value.requireValidAmmount();
+            _value.requireValidAmount();
         }
         return super.approve(_spender, _value);
     }   
     function increaseApproval(address _spender, uint256 _addedValue) public notFrozen returns (bool success) {
         registerTransaction();
         if (_addedValue != 0) {
-            _addedValue.requireValidAmmount();
+            _addedValue.requireValidAmount();
         }
         return super.increaseApproval(_spender, _addedValue);
     }   
     function decreaseApproval(address _spender, uint256 _subtractedValue) public notFrozen returns (bool success) {
         registerTransaction();
         if (_subtractedValue != 0) {
-            _subtractedValue.requireValidAmmount();
+            _subtractedValue.requireValidAmount();
         }
         return super.decreaseApproval(_spender, _subtractedValue);
     }

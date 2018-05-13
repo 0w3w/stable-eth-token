@@ -6,17 +6,22 @@ const assertBalanceOf = async (contractInstance, account, expectedAmount) => {
 }
 
 const assertInLimbo = async (contractInstance, expectedAmount) => {
-  const cacaosInLimbo = await contractInstance.cacaosInLimbo();        
+  const cacaosInLimbo = await contractInstance.cacaosInLimbo();
   assert.equal(cacaosInLimbo, expectedAmount);
 }
 
 const assertInPurgatory = async (contractInstance, expectedAmount) => {
-  const cacaosInPurgatory = await contractInstance.cacaosInPurgatory();        
-  assert.equal(cacaosInPurgatory, cacaosInPurgatory);
+  const cacaosInPurgatory = await contractInstance.cacaosInPurgatory();
+  assert.equal(cacaosInPurgatory, expectedAmount);
+}
+
+const assertBurned = async (contractInstance, expectedAmount) => {
+  const cacaosBurned = await contractInstance.cacaosBurned();
+  assert.equal(cacaosBurned, expectedAmount);
 }
 
 const assertInCirculation = async (contractInstance, expectedCirculation) => {
-  const cacaosInCirculation = await contractInstance.cacaosInCirculation();        
+  const cacaosInCirculation = await contractInstance.cacaosInCirculation();
   assert.equal(cacaosInCirculation, expectedCirculation);
 }
 
@@ -29,6 +34,7 @@ module.exports = {
   assertBalanceOf,
   assertInLimbo,
   assertInPurgatory,
+  assertBurned,
   assertInCirculation,
   assertTotalSupply
 };

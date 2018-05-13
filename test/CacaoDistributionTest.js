@@ -9,16 +9,6 @@ require('chai')
     .use(require('chai-bignumber')(web3.BigNumber))
     .should();
 
-async function assertIsCreating(contractInstance) {
-    let isCreating = await contractInstance.isCreating();
-    assert(isCreating, "Contract should be creating");
-}
-
-async function assertIsNotCreating(contractInstance) {
-    let isCreating = await contractInstance.isCreating();
-    assert(!isCreating, "Contract should not be creating");
-}
-
 contract('CacaoDistribution', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
@@ -48,7 +38,7 @@ contract('CacaoDistribution', async (accounts) => {
             let confirmDistributionTask = this.token.confirmDistribution(owner, true, { from: distributionAddresses[1] });
             let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
             distributionEvent.args._to.should.eq(owner);
-            distributionEvent.args._ammount.should.be.bignumber.equal(initialAmountToDistribute);
+            distributionEvent.args._amount.should.be.bignumber.equal(initialAmountToDistribute);
             await assertInCirculation(this.token, initialAmountToDistribute);
             await assertTotalSupply(this.token, creationAmount);
             await assertBalanceOf(this.token, owner, initialAmountToDistribute);
@@ -136,7 +126,7 @@ contract('CacaoDistribution', async (accounts) => {
                             let confirmDistributionTask = this.token.confirmDistribution(owner, true, { from: distributionAddresses[1] });
                             let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
                             distributionEvent.args._to.should.eq(owner);
-                            distributionEvent.args._ammount.should.be.bignumber.equal(initialAmountToDistribute);
+                            distributionEvent.args._amount.should.be.bignumber.equal(initialAmountToDistribute);
                             await assertInCirculation(this.token, initialAmountToDistribute);
                             await assertTotalSupply(this.token, creationAmount);
                             await assertBalanceOf(this.token, owner, initialAmountToDistribute);

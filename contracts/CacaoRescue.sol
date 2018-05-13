@@ -12,7 +12,7 @@ contract CacaoRescue {
     // Cacaos are considered lost after N years of no account movement, which translates to a block threshold from last transaction
     uint256 public blockThreshold = 10950000;
     
-    // The total ammount of cacaos rescued
+    // The total amount of cacaos rescued
     uint256 public cacaosRescued = 0;
 
     // The rescued cacaos go to the "hell", a place in which pious people (who lost their keys) cacao's continue to exist
@@ -40,30 +40,30 @@ contract CacaoRescue {
         require(blockThreshold <= block.number);
         uint256 transactionBlockThreshold = block.number.sub(blockThreshold);
         require(_lastMovements[_address] <= transactionBlockThreshold);
-        uint256 ammountRescued = onRescue(_address);
-        cacaosRescued.add(ammountRescued);
-        cacaosInHell.add(ammountRescued);
-        emit Rescued(_address, ammountRescued);
+        uint256 amountRescued = onRescue(_address);
+        cacaosRescued.add(amountRescued);
+        cacaosInHell.add(amountRescued);
+        emit Rescued(_address, amountRescued);
     }    
 
-    /// @notice Will completely obliterate the _ammount of cacaos from existence.
-    /// @dev Will decrease _ammount from the cacaosInHell.
-    /// @param _ammount The ammount of cacaos to obliterate.
-    function obliterateRescuedCacaos(uint256 _ammount) public senderCanRescue() {
-        require(_ammount <= cacaosInHell);
-        cacaosInHell = cacaosInHell.sub(_ammount);
-        onObliterateRescued(_ammount);
+    /// @notice Will completely obliterate the _amount of cacaos from existence.
+    /// @dev Will decrease _amount from the cacaosInHell.
+    /// @param _amount The amount of cacaos to obliterate.
+    function obliterateRescuedCacaos(uint256 _amount) public senderCanRescue() {
+        require(_amount <= cacaosInHell);
+        cacaosInHell = cacaosInHell.sub(_amount);
+        onObliterateRescued(_amount);
     }
 
     /// @notice Execute the rescue of cacaos
     /// @dev Abstract Method
     /// @param _address The address to rescue Cacaos from.
-    function onRescue(address _address) internal returns (uint256 ammount);
+    function onRescue(address _address) internal returns (uint256 amount);
 
     /// @notice Execute the obliteration of cacaos
     /// @dev Abstract Method
-    /// @param _ammount The amount of obliterated cacaos.
-    function onObliterateRescued(uint256 _ammount) internal;
+    /// @param _amount The amount of obliterated cacaos.
+    function onObliterateRescued(uint256 _amount) internal;
 
     /// @notice Validates that the address can rescue Cacaos.
     /// @dev Abstract Method
@@ -73,6 +73,6 @@ contract CacaoRescue {
 
     /// @notice Is fired when cacaos are rescued from accounts with no movement.
     /// @param _account The _account where the cacaos were rescued from.
-    /// @param _ammount The ammount of rescued cacaos.
-    event Rescued(address indexed _account, uint256 _ammount);
+    /// @param _amount The amount of rescued cacaos.
+    event Rescued(address indexed _account, uint256 _amount);
 }
