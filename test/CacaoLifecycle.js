@@ -10,7 +10,7 @@ require('chai')
 
 contract('Cacao', async (accounts) => {
     let contractInstance;
-    // One finney is 0.001, which is the minimum initialAmount of cacao that a user can transact (1 Cent of a MXN), In Weis
+    // One finney is 0.001, which is the minimum initialAmount of cacao that a user can transact (1 Cent of a MXN), Unit is Weis
     let initialamountInWei = web3.toWei(1000, "finney");
 
     beforeEach('setup contract for each test', async function () {

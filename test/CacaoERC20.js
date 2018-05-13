@@ -1,17 +1,6 @@
+import { createCoin, distributeCoin, createAndDistributeCoin } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
-
-async function distribute(contractInstance, distributionAddresses, amountInWeis, distributeTo) {
-    await contractInstance.startDistribution(distributeTo, amountInWeis, { from: distributionAddresses[0] });
-    await contractInstance.confirmDistribution(distributeTo, true, { from: distributionAddresses[1] });
-}
-
-async function createAndDistribute(contractInstance, creationAddresses, distributionAddresses, amountInWeis, distributeTo) {
-    await contractInstance.startCreation(amountInWeis, { from: creationAddresses[0] });
-    await contractInstance.confirmCreation(true, { from: creationAddresses[1] });        
-    await contractInstance.confirmCreation(true, { from: creationAddresses[2] });
-    await distribute(contractInstance, distributionAddresses, amountInWeis, distributeTo);
-}
 
 contract('StandardToken', function (accounts) {
     const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -26,7 +15,7 @@ contract('StandardToken', function (accounts) {
         this.token = await Cacao.new(
             creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4], // Creation Address 1 is msg.sender
             distributionAddresses[0], distributionAddresses[1], distributionAddresses[2]);
-        await createAndDistribute(this.token, creationAddresses, distributionAddresses, initialAmount, owner);
+        await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, initialAmount, owner);
     });
   
     describe('total supply', function () {

@@ -44,7 +44,7 @@ contract CacaoDistribution {
     /// @dev Will fail if:
     /// - The msg.sender is not an authorized distributor.
     /// - The _ammount is invalid.
-    /// - There's no active process for that address
+    /// - There's an active process for that address
     /// @param _to The address to send cacaos to.
     /// @param _ammount The ammount of cacaos to issue.
     function startDistribution(address _to, uint256 _ammount) external requireValidDistributionAddress {
