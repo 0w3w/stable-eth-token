@@ -59,15 +59,10 @@ contract StandardToken is ERC20 {
         require(_value > 0);
         require(_to != address(0));
         require(_value <= balances[msg.sender]);
-        bool overflowed = balances[_to] + _value < balances[_to];
-        if (!overflowed) {
-            balances[msg.sender] -= _value;
-            balances[_to] += _value;
-            emit Transfer(msg.sender, _to, _value);
-            return true;
-        } else {
-            return false;
-        }
+        balances[msg.sender] = balances[msg.sender].sub(_value);
+        balances[_to] = balances[_to].add(_value);
+        emit Transfer(msg.sender, _to, _value);
+        return true;
     }
 
     // Send `tokens` amount of tokens from address `from` to address `to`
@@ -77,31 +72,26 @@ contract StandardToken is ERC20 {
     // deliberately authorized the sender of the message via some mechanism; we propose
     // these standardized APIs for approval:
     function transferFrom(address _from, address _to, uint256 _value) public mitigateShortAddressAttack returns (bool success) {
-        if (_value == 0) {
-            return false;
-        }
-        uint256 fromBalance = balances[_from];
-        uint256 allowance = allowed[_from][msg.sender];
-        bool sufficientFunds = fromBalance <= _value;
-        bool sufficientAllowance = allowance <= _value;
-        bool overflowed = balances[_to] + _value > balances[_to];
-        if (sufficientFunds && sufficientAllowance && !overflowed) {
-            balances[_to] += _value;
-            balances[_from] -= _value;
-            allowed[_from][msg.sender] -= _value;
-            emit Transfer(_from, _to, _value);
-            return true;
-        } else {
-            return false;
-        }
+        require(_to != address(0));
+        require(_value <= balances[_from]);
+        require(_value <= allowed[_from][msg.sender]);
+
+        balances[_from] = balances[_from].sub(_value);
+        balances[_to] = balances[_to].add(_value);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+        emit Transfer(_from, _to, _value);
+        return true;
     }
 
     // Allow `spender` to withdraw from your account, multiple times, up to the `tokens` amount.
     // If this function is called again it overwrites the current allowance with _value.
     function approve(address _spender, uint256 _value) public returns (bool success) {
-        // mitigates the ERC20 spend/approval race condition
+        // To change the approve amount you first have to reduce the addresses`
+        //  allowance to zero by calling `approve(_spender, 0)` if it is not
+        //  already 0 to mitigate the race condition described here:
+        //  https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
         if (_value != 0 && allowed[msg.sender][_spender] != 0) {
-            return false;
+            revert();
         }
         allowed[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);

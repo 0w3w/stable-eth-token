@@ -128,21 +128,29 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the spender had an approved amount', function () {
+            let approvedAmount = web3.toWei(1, "finney");
             beforeEach(async function () {
-              await this.token.approve(spender, 1, { from: owner });
+              await this.token.approve(spender, approvedAmount, { from: owner });
             });
+
+            it('reverts if try to replace the previous one without calling approve with 0', async function () {
+              await assertRevert(this.token.approve(spender, amount, { from: owner }));
+            });       
   
             it('approves the requested amount and replaces the previous one', async function () {
+              // mitigates the ERC20 spend/approval race condition by calling approve(_spender, 0) first
+              await this.token.approve(spender, 0, { from: owner });
+              let allowance = await this.token.allowance(owner, spender);
               await this.token.approve(spender, amount, { from: owner });
-  
-              const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, amount);
+
+              allowance = await this.token.allowance(owner, spender);
+              assert.equal(allowance.toString(), amount);
             });
           });
         });
   
         describe('when the sender does not have enough balance', function () {
-          const amount = 101;
+          const amount = web3.toWei(101, "finney");
   
           it('emits an approval event', async function () {
             const { logs } = await this.token.approve(spender, amount, { from: owner });
@@ -164,15 +172,21 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the spender had an approved amount', function () {
+            let approvedAmount = web3.toWei(1, "finney");
             beforeEach(async function () {
-              await this.token.approve(spender, 1, { from: owner });
+              await this.token.approve(spender, approvedAmount, { from: owner });
+            });
+
+            it('reverts if try to replace the previous one without calling approve with 0', async function () {
+              await assertRevert(this.token.approve(spender, amount, { from: owner }));
             });
   
             it('approves the requested amount and replaces the previous one', async function () {
+              await this.token.approve(spender, 0, { from: owner });
               await this.token.approve(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, amount);
+              assert.equal(allowance.toString(), amount);
             });
           });
         });
@@ -186,7 +200,7 @@ contract('StandardToken', function (accounts) {
           await this.token.approve(spender, amount, { from: owner });
   
           const allowance = await this.token.allowance(owner, spender);
-          assert.equal(allowance, amount);
+          assert.equal(allowance.toString(), amount);
         });
   
         it('emits an approval event', async function () {
@@ -219,17 +233,17 @@ contract('StandardToken', function (accounts) {
               await this.token.transferFrom(owner, to, amount, { from: spender });
   
               const senderBalance = await this.token.balanceOf(owner);
-              assert.equal(senderBalance, 0);
+              assert.equal(senderBalance.toNumber(), 0);
   
               const recipientBalance = await this.token.balanceOf(to);
-              assert.equal(recipientBalance, amount);
+              assert.equal(recipientBalance.toString(), amount);
             });
   
             it('decreases the spender allowance', async function () {
               await this.token.transferFrom(owner, to, amount, { from: spender });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert(allowance.eq(0));
+              assert.equal(allowance.toNumber(), 0);
             });
   
             it('emits a transfer event', async function () {
@@ -244,7 +258,7 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the owner does not have enough balance', function () {
-            const amount = 101;
+            const amount = web3.toWei(101, "finney");
   
             it('reverts', async function () {
               await assertRevert(this.token.transferFrom(owner, to, amount, { from: spender }));
@@ -253,8 +267,9 @@ contract('StandardToken', function (accounts) {
         });
   
         describe('when the spender does not have enough approved balance', function () {
+          const approveAmount = web3.toWei(99, "finney");
           beforeEach(async function () {
-            await this.token.approve(spender, 99, { from: owner });
+            await this.token.approve(spender, approveAmount, { from: owner });
           });
   
           describe('when the owner has enough balance', function () {
@@ -266,7 +281,7 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the owner does not have enough balance', function () {
-            const amount = 101;
+            const amount = web3.toWei(101, "finney");
   
             it('reverts', async function () {
               await assertRevert(this.token.transferFrom(owner, to, amount, { from: spender }));
@@ -311,26 +326,28 @@ contract('StandardToken', function (accounts) {
               await this.token.decreaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, 0);
+              assert.equal(allowance.toNumber(), 0);
             });
           });
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              await this.token.approve(spender, amount + 1, { from: owner });
+              const approvedAmount = web3.toWei(101, "finney");
+              await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
             it('decreases the spender allowance subtracting the requested amount', async function () {
               await this.token.decreaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, 1);
+              const expectedAmount = web3.toWei(1, "finney");
+              assert.equal(allowance.toString(), expectedAmount.toString());
             });
           });
         });
   
         describe('when the sender does not have enough balance', function () {
-          const amount = 101;
+          const amount = web3.toWei(101, "finney");
   
           it('emits an approval event', async function () {
             const { logs } = await this.token.decreaseApproval(spender, amount, { from: owner });
@@ -347,20 +364,22 @@ contract('StandardToken', function (accounts) {
               await this.token.decreaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, 0);
+              assert.equal(allowance.toNumber(), 0);
             });
           });
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              await this.token.approve(spender, amount + 1, { from: owner });
+              const approvedAmount = web3.toWei(102, "finney");
+              await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
             it('decreases the spender allowance subtracting the requested amount', async function () {
               await this.token.decreaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, 1);
+              const expectedAmount = web3.toWei(1, "finney");
+              assert.equal(allowance.toString(), expectedAmount.toString());
             });
           });
         });
@@ -417,20 +436,22 @@ contract('StandardToken', function (accounts) {
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              await this.token.approve(spender, 1, { from: owner });
+              const approvedAmount = web3.toWei(1, "finney");
+              await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
             it('increases the spender allowance adding the requested amount', async function () {
+              const amountAfterIncrease = web3.toWei(101, "finney");
               await this.token.increaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, amount + 1);
+              assert.equal(allowance.toString(), amountAfterIncrease.toString());
             });
           });
         });
   
         describe('when the sender does not have enough balance', function () {
-          const amount = 101;
+          const amount = web3.toWei(101, "finney");
   
           it('emits an approval event', async function () {
             const { logs } = await this.token.increaseApproval(spender, amount, { from: owner });
@@ -453,14 +474,16 @@ contract('StandardToken', function (accounts) {
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              await this.token.approve(spender, 1, { from: owner });
+              const approvedAmount = web3.toWei(1, "finney");              
+              await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
             it('increases the spender allowance adding the requested amount', async function () {
               await this.token.increaseApproval(spender, amount, { from: owner });
+              const amountAfterIncrease = web3.toWei(102, "finney");
   
               const allowance = await this.token.allowance(owner, spender);
-              assert.equal(allowance, amount + 1);
+              assert.equal(allowance.toString(), amountAfterIncrease.toString());
             });
           });
         });
