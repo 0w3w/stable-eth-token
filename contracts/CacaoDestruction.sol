@@ -64,6 +64,7 @@ contract CacaoDestruction {
     /// @param _amount The amount of cacaos to obliterate.
     function obliterate(uint256 _amount) public senderCanDestruct() {
         onObliterate();
+        require(cacaosInPurgatory >= _amount);
         cacaosInPurgatory = cacaosInPurgatory.sub(_amount);
         emit Obliterated(_amount);
     }

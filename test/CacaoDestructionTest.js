@@ -56,4 +56,97 @@ contract('CacaoDestruction', async (accounts) => {
             await assertTotalSupply(this.token, web3.toWei(994, "finney"));
         });
     });
+
+    describe('generateDestructionReference', function () {
+        beforeEach(async function () {
+            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+        });
+        describe('when the sender address is a distribution address', function () {
+            it("succeeds", async function () {
+                await this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] });
+            });
+        });
+        describe('when the sender address is not a distribution address', function () {
+            it("fails", async function () {
+                await assertRevert(this.token.generateDestructionReference(destructionReference, { from: creationAddresses[1] }));
+            });
+        });
+        describe('when the reference is already taken', function () {
+            it("fails", async function () {
+                await this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] });
+                await assertRevert(this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] }));
+            });
+        });
+    });
+
+    describe('burn', function () {
+        beforeEach(async function () {
+            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+        });
+        describe('when is valid reference', function () {
+            beforeEach(async function () {
+                await this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] });
+            });
+            describe('when the sender has enough balance to burn', function () {
+                it("succeeds", async function () {
+                    let burnTask = this.token.burn(amountToBurn, destructionReference, { from: owner });
+                    let burnedEvent = await inTransaction(burnTask, 'Burned');
+                    burnedEvent.args._account.should.eq(owner);
+                    burnedEvent.args._amount.should.be.bignumber.equal(amountToBurn);
+                    burnedEvent.args._reference.should.eq(destructionReference);
+                    await assertBalanceOf(this.token, owner, web3.toWei(990, "finney"));
+                    await assertInPurgatory(this.token, amountToBurn);
+                    await assertInCirculation(this.token, web3.toWei(990, "finney"));
+                    await assertTotalSupply(this.token, creationAmount);
+                });
+            });
+            describe('when the sender has enough balance to burn', function () {
+                let notEnoughBalanceAccount = accounts[9];
+                it("fails", async function () {
+                    await assertRevert(this.token.burn(amountToBurn, destructionReference, { from: notEnoughBalanceAccount }));
+                });
+            });
+            describe('when the reference is already used', function () {
+                it("fails", async function () {
+                    await this.token.burn(amountToBurn, destructionReference, { from: owner });
+                    await assertRevert(this.token.burn(amountToBurn, destructionReference, { from: owner }));
+                });
+            });
+        });
+        describe('when is an invalid reference', function () {
+            let invalidReference = "invalid-reference";
+            it("fails", async function () {
+                await assertRevert(this.token.burn(amountToBurn, invalidReference, { from: owner }));
+            })
+        });
+    });
+
+    describe('obliterate', function () {
+        beforeEach(async function () {
+            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+            await this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] });
+            await this.token.burn(amountToBurn, destructionReference, { from: owner });
+        });
+        describe('when the sender address is a distribution address', function () {
+            it("succeeds", async function () {
+                let obliterateTask = this.token.obliterate(amountToObliterate, { from: distributionAddresses[1] });
+                let obliterateEvent = await inTransaction(obliterateTask, 'Obliterated');
+                obliterateEvent.args._amount.should.be.bignumber.equal(amountToObliterate);
+                await assertInPurgatory(this.token, web3.toWei(4, "finney"));
+                await assertInCirculation(this.token, web3.toWei(990, "finney"));
+                await assertTotalSupply(this.token, web3.toWei(994, "finney"));
+            });
+        });
+        describe('when the sender address is not a distribution address', function () {
+            it("fails", async function () {
+                await assertRevert(this.token.obliterate(amountToObliterate, { from: creationAddresses[1] }));
+            });
+        });
+        describe('when there are not enough coins to obliterate', function () {
+            it("fails", async function () {
+                let toMuchAmountToObliterate = web3.toWei(100, "finney");
+                await assertRevert(this.token.obliterate(toMuchAmountToObliterate, { from: distributionAddresses[1] }));
+            });
+        });
+    });
 });
