@@ -49,7 +49,7 @@ contract CacaoCreation {
     /// @dev This method will fail if:
     /// - There is an ongoing creation process.
     /// - The msg.sender is not a valid creation address.
-    /// - Invalid amount, should be at least 1 finney.
+    /// - Invalid amount, should be at least 1000 wei.
     /// @param _amount The amount of cacaos to issue
     function startCreation(uint256 _amount) external whenNotCreating requireValidCreationAddress {
         _amount.requireValidAmount();

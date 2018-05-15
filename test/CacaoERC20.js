@@ -1,4 +1,4 @@
-import { createCoin, distributeCoin, createAndDistributeCoin } from './helpers/helperMethods.js';
+import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -9,7 +9,7 @@ contract('StandardToken', function (accounts) {
     const owner = accounts[9];
     const recipient = accounts[10];
     const anotherAccount = accounts[11];
-    const initialAmount = web3.toWei(100, "finney");
+    const initialAmount = caoToWei(100);
   
     beforeEach(async function () {
         this.token = await Cacao.new(
@@ -49,7 +49,7 @@ contract('StandardToken', function (accounts) {
         const to = recipient;
   
         describe('when the sender does not have enough balance', function () {
-          const amount = web3.toWei(101, "finney");
+          const amount = caoToWei(101);
   
           it('reverts', async function () {
             await assertRevert(this.token.transfer(to, amount, { from: owner }));
@@ -117,7 +117,7 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the spender had an approved amount', function () {
-            let approvedAmount = web3.toWei(1, "finney");
+            let approvedAmount = caoToWei(1);
             beforeEach(async function () {
               await this.token.approve(spender, approvedAmount, { from: owner });
             });
@@ -139,7 +139,7 @@ contract('StandardToken', function (accounts) {
         });
   
         describe('when the sender does not have enough balance', function () {
-          const amount = web3.toWei(101, "finney");
+          const amount = caoToWei(101);
   
           it('emits an approval event', async function () {
             const { logs } = await this.token.approve(spender, amount, { from: owner });
@@ -161,7 +161,7 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the spender had an approved amount', function () {
-            let approvedAmount = web3.toWei(1, "finney");
+            let approvedAmount = caoToWei(1);
             beforeEach(async function () {
               await this.token.approve(spender, approvedAmount, { from: owner });
             });
@@ -247,7 +247,7 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the owner does not have enough balance', function () {
-            const amount = web3.toWei(101, "finney");
+            const amount = caoToWei(101);
   
             it('reverts', async function () {
               await assertRevert(this.token.transferFrom(owner, to, amount, { from: spender }));
@@ -256,7 +256,7 @@ contract('StandardToken', function (accounts) {
         });
   
         describe('when the spender does not have enough approved balance', function () {
-          const approveAmount = web3.toWei(99, "finney");
+          const approveAmount = caoToWei(99);
           beforeEach(async function () {
             await this.token.approve(spender, approveAmount, { from: owner });
           });
@@ -270,7 +270,7 @@ contract('StandardToken', function (accounts) {
           });
   
           describe('when the owner does not have enough balance', function () {
-            const amount = web3.toWei(101, "finney");
+            const amount = caoToWei(101);
   
             it('reverts', async function () {
               await assertRevert(this.token.transferFrom(owner, to, amount, { from: spender }));
@@ -321,7 +321,7 @@ contract('StandardToken', function (accounts) {
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              const approvedAmount = web3.toWei(101, "finney");
+              const approvedAmount = caoToWei(101);
               await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
@@ -329,14 +329,14 @@ contract('StandardToken', function (accounts) {
               await this.token.decreaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              const expectedAmount = web3.toWei(1, "finney");
+              const expectedAmount = caoToWei(1);
               assert.equal(allowance.toString(), expectedAmount.toString());
             });
           });
         });
   
         describe('when the sender does not have enough balance', function () {
-          const amount = web3.toWei(101, "finney");
+          const amount = caoToWei(101);
   
           it('emits an approval event', async function () {
             const { logs } = await this.token.decreaseApproval(spender, amount, { from: owner });
@@ -359,7 +359,7 @@ contract('StandardToken', function (accounts) {
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              const approvedAmount = web3.toWei(102, "finney");
+              const approvedAmount = caoToWei(102);
               await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
@@ -367,7 +367,7 @@ contract('StandardToken', function (accounts) {
               await this.token.decreaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
-              const expectedAmount = web3.toWei(1, "finney");
+              const expectedAmount = caoToWei(1);
               assert.equal(allowance.toString(), expectedAmount.toString());
             });
           });
@@ -425,12 +425,12 @@ contract('StandardToken', function (accounts) {
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              const approvedAmount = web3.toWei(1, "finney");
+              const approvedAmount = caoToWei(1);
               await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
             it('increases the spender allowance adding the requested amount', async function () {
-              const amountAfterIncrease = web3.toWei(101, "finney");
+              const amountAfterIncrease = caoToWei(101);
               await this.token.increaseApproval(spender, amount, { from: owner });
   
               const allowance = await this.token.allowance(owner, spender);
@@ -440,7 +440,7 @@ contract('StandardToken', function (accounts) {
         });
   
         describe('when the sender does not have enough balance', function () {
-          const amount = web3.toWei(101, "finney");
+          const amount = caoToWei(101);
   
           it('emits an approval event', async function () {
             const { logs } = await this.token.increaseApproval(spender, amount, { from: owner });
@@ -463,13 +463,13 @@ contract('StandardToken', function (accounts) {
   
           describe('when the spender had an approved amount', function () {
             beforeEach(async function () {
-              const approvedAmount = web3.toWei(1, "finney");              
+              const approvedAmount = caoToWei(1);              
               await this.token.approve(spender, approvedAmount, { from: owner });
             });
   
             it('increases the spender allowance adding the requested amount', async function () {
               await this.token.increaseApproval(spender, amount, { from: owner });
-              const amountAfterIncrease = web3.toWei(102, "finney");
+              const amountAfterIncrease = caoToWei(102);
   
               const allowance = await this.token.allowance(owner, spender);
               assert.equal(allowance.toString(), amountAfterIncrease.toString());

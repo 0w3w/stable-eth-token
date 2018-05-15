@@ -1,4 +1,4 @@
-import { createCoin, distributeCoin, createAndDistributeCoin } from './helpers/helperMethods.js';
+import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
 import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertBurned, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
 import assertRevert from './helpers/assertRevert.js';
@@ -13,10 +13,10 @@ contract('CacaoDestruction', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
     let destructionReference = "QWERY132456";
-    let creationAmount = web3.toWei(1000, "finney");
-    let amountToDistribute = web3.toWei(100, "finney");
-    let amountToBurn = web3.toWei(10, "finney");
-    let amountToObliterate = web3.toWei(6, "finney");
+    let creationAmount = caoToWei(1000);
+    let amountToDistribute = caoToWei(100);
+    let amountToBurn = caoToWei(10);
+    let amountToObliterate = caoToWei(6);
     let owner = accounts[8];
 
     beforeEach('setup contract for each test', async function () {
@@ -29,7 +29,7 @@ contract('CacaoDestruction', async (accounts) => {
         it("succeeds", async function () {
             await createCoin(this.token, creationAddresses, creationAmount);
             await distributeCoin(this.token, distributionAddresses, amountToDistribute, owner);
-            await assertInLimbo(this.token, web3.toWei(900, "finney"));
+            await assertInLimbo(this.token, caoToWei(900));
             await assertInCirculation(this.token, amountToDistribute);
             await assertInPurgatory(this.token, 0);
             await assertBurned(this.token, 0);
@@ -41,19 +41,19 @@ contract('CacaoDestruction', async (accounts) => {
             burnedEvent.args._account.should.eq(owner);
             burnedEvent.args._amount.should.be.bignumber.equal(amountToBurn);
             burnedEvent.args._reference.should.eq(destructionReference);
-            await assertBalanceOf(this.token, owner, web3.toWei(90, "finney"));
+            await assertBalanceOf(this.token, owner, caoToWei(90));
             await assertInPurgatory(this.token, amountToBurn);
-            await assertInCirculation(this.token, web3.toWei(90, "finney"));
-            await assertInLimbo(this.token, web3.toWei(900, "finney"));
+            await assertInCirculation(this.token, caoToWei(90));
+            await assertInLimbo(this.token, caoToWei(900));
             await assertTotalSupply(this.token, creationAmount);
 
             let obliterateTask = this.token.obliterate(amountToObliterate, { from: distributionAddresses[1] });
             let obliterateEvent = await inTransaction(obliterateTask, 'Obliterated');
             obliterateEvent.args._amount.should.be.bignumber.equal(amountToObliterate);
-            await assertInPurgatory(this.token, web3.toWei(4, "finney"));
-            await assertInCirculation(this.token, web3.toWei(90, "finney"));
-            await assertInLimbo(this.token, web3.toWei(900, "finney"));
-            await assertTotalSupply(this.token, web3.toWei(994, "finney"));
+            await assertInPurgatory(this.token, caoToWei(4));
+            await assertInCirculation(this.token, caoToWei(90));
+            await assertInLimbo(this.token, caoToWei(900));
+            await assertTotalSupply(this.token, caoToWei(994));
         });
     });
 
@@ -94,9 +94,9 @@ contract('CacaoDestruction', async (accounts) => {
                     burnedEvent.args._account.should.eq(owner);
                     burnedEvent.args._amount.should.be.bignumber.equal(amountToBurn);
                     burnedEvent.args._reference.should.eq(destructionReference);
-                    await assertBalanceOf(this.token, owner, web3.toWei(990, "finney"));
+                    await assertBalanceOf(this.token, owner, caoToWei(990));
                     await assertInPurgatory(this.token, amountToBurn);
-                    await assertInCirculation(this.token, web3.toWei(990, "finney"));
+                    await assertInCirculation(this.token, caoToWei(990));
                     await assertTotalSupply(this.token, creationAmount);
                 });
             });
@@ -132,9 +132,9 @@ contract('CacaoDestruction', async (accounts) => {
                 let obliterateTask = this.token.obliterate(amountToObliterate, { from: distributionAddresses[1] });
                 let obliterateEvent = await inTransaction(obliterateTask, 'Obliterated');
                 obliterateEvent.args._amount.should.be.bignumber.equal(amountToObliterate);
-                await assertInPurgatory(this.token, web3.toWei(4, "finney"));
-                await assertInCirculation(this.token, web3.toWei(990, "finney"));
-                await assertTotalSupply(this.token, web3.toWei(994, "finney"));
+                await assertInPurgatory(this.token, caoToWei(4));
+                await assertInCirculation(this.token, caoToWei(990));
+                await assertTotalSupply(this.token, caoToWei(994));
             });
         });
         describe('when the sender address is not a distribution address', function () {
@@ -144,7 +144,7 @@ contract('CacaoDestruction', async (accounts) => {
         });
         describe('when there are not enough coins to obliterate', function () {
             it("fails", async function () {
-                let toMuchAmountToObliterate = web3.toWei(100, "finney");
+                let toMuchAmountToObliterate = caoToWei(100);
                 await assertRevert(this.token.obliterate(toMuchAmountToObliterate, { from: distributionAddresses[1] }));
             });
         });

@@ -1,4 +1,4 @@
-import { createCoin, distributeCoin, createAndDistributeCoin } from './helpers/helperMethods.js';
+import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
 import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertBurned, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
 import assertRevert from './helpers/assertRevert.js';
@@ -13,11 +13,11 @@ contract('CacaoFreeze', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
     let destructionReference = "QWERY132456";
-    let creationAmount = web3.toWei(1000, "finney");
-    let amountToDistribute = web3.toWei(100, "finney");
-    let amountToBurn = web3.toWei(10, "finney");
-    let amountToObliterate = web3.toWei(6, "finney");
-    let amountToSend = web3.toWei(5, "finney");
+    let creationAmount = caoToWei(1000);
+    let amountToDistribute = caoToWei(100);
+    let amountToBurn = caoToWei(10);
+    let amountToObliterate = caoToWei(6);
+    let amountToSend = caoToWei(5);
     let owner = accounts[8];
     let spender = accounts[9];
     let to = accounts[10];

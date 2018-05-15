@@ -1,5 +1,6 @@
 import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
+import { caoToWei } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -19,8 +20,7 @@ async function assertIsNotCreating(contractInstance) {
 }
 
 contract('CacaoCreation', async (accounts) => {
-    // One finney is 0.001, which is the minimum initialAmount of cacao that a user can transact (1 Cent of a MXN), Unit is Weis
-    let creationAmount = web3.toWei(1, "finney");
+    let creationAmount = caoToWei(10);
     let creationAddress = accounts[0];
     let creationAddress2 = accounts[1];
     let creationAddress3 = accounts[2];
@@ -34,13 +34,12 @@ contract('CacaoCreation', async (accounts) => {
 
     describe('creation lifecycle', function () {
         it("succeeds", async function () {
-            let initialCreationAmountInWei = web3.toWei(1, "finney");
             await assertIsNotCreating(this.token);
             await assertInLimbo(this.token, 0);
             await assertTotalSupply(this.token, 0);
 
             // Start Creation
-            await this.token.startCreation(initialCreationAmountInWei, { from: accounts[0] });
+            await this.token.startCreation(creationAmount, { from: accounts[0] });
             await assertIsCreating(this.token);
             await assertTotalSupply(this.token, 0);
 
@@ -48,17 +47,17 @@ contract('CacaoCreation', async (accounts) => {
             await this.token.confirmCreation(true, { from: accounts[1] });
             let confirmCreationTask = this.token.confirmCreation(true, { from: accounts[2] });
             let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-            creationEvent.args._amount.should.be.bignumber.equal(initialCreationAmountInWei);
+            creationEvent.args._amount.should.be.bignumber.equal(creationAmount);
 
             await assertIsNotCreating(this.token);
-            await assertInLimbo(this.token, initialCreationAmountInWei);
-            await assertTotalSupply(this.token, initialCreationAmountInWei);
+            await assertInLimbo(this.token, creationAmount);
+            await assertTotalSupply(this.token, creationAmount);
         });
     });
 
     describe('startCreation', function () {
         describe('when the sender address is a creation address.', function () {
-            describe('when is a valid amount (greater equal than 0.001 Ether).', function () {
+            describe('when is a valid amount (greater equal than 0.001 CAO).', function () {
                 it('starts creation.', async function () {
                     await assertTotalSupply(this.token, 0);
                     await assertIsNotCreating(this.token);
@@ -67,8 +66,8 @@ contract('CacaoCreation', async (accounts) => {
                     await assertTotalSupply(this.token, 0);
                 });
             });
-            describe('when is an invalid amount (less than 0.001 Ether).', function () {
-                let invalidCreationAmount = web3.toWei(.5, "finney");
+            describe('when is an invalid amount (less than 0.001 CAO).', function () {
+                let invalidCreationAmount = caoToWei(.0001);
                 it('fails.', async function () {
                     await assertTotalSupply(this.token, 0);
                     await assertIsNotCreating(this.token);

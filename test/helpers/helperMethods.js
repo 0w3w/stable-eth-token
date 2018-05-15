@@ -14,8 +14,13 @@ const createAndDistributeCoin = async(contractInstance, creationAddresses, distr
     await distributeCoin(contractInstance, distributionAddresses, amountInWeis, distributeTo);
 }
 
+const caoToWei = (amount) => {
+    return amount * 1000;
+}
+
 module.exports = {
     createCoin,
     distributeCoin,
-    createAndDistributeCoin
+    createAndDistributeCoin,
+    caoToWei
 };

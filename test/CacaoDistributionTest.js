@@ -1,4 +1,4 @@
-import { createCoin, distributeCoin, createAndDistributeCoin } from './helpers/helperMethods.js';
+import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
 import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
 import assertRevert from './helpers/assertRevert.js';
@@ -12,9 +12,9 @@ require('chai')
 contract('CacaoDistribution', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
-    let creationAmount = web3.toWei(1000, "finney");
-    let pendingAmountInLimbo = web3.toWei(900, "finney");
-    let initialAmountToDistribute = web3.toWei(100, "finney");
+    let creationAmount =caoToWei(1000);
+    let pendingAmountInLimbo = caoToWei(900);
+    let initialAmountToDistribute = caoToWei(100);
     let owner = accounts[8];
 
     beforeEach('setup contract for each test', async function () {
@@ -42,27 +42,26 @@ contract('CacaoDistribution', async (accounts) => {
             await assertInCirculation(this.token, initialAmountToDistribute);
             await assertTotalSupply(this.token, creationAmount);
             await assertBalanceOf(this.token, owner, initialAmountToDistribute);
-            await assertInLimbo(this.token, web3.toWei(900, "finney"));
+            await assertInLimbo(this.token, caoToWei(900));
         });
     });
 
     describe('startDistribution', function () {
         describe('when there are enough cacaos in limbo', function () {
-            // One finney is 0.001, which is the minimum initialAmount of cacao that a user can transact (1 Cent of a MXN), Unit is Weis
             beforeEach(async function () {
                 await createCoin(this.token, creationAddresses, creationAmount);
                 await assertInLimbo(this.token, creationAmount);
             });
             describe('when the sender address is a distribution address.', function () {
-                describe('when is a valid amount (greater equal than 0.001 Ether).', function () {
+                describe('when is a valid amount (greater equal than 0.001 CAO).', function () {
                     it('starts distribution.', async function () {
                         await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
                         await assertInCirculation(this.token, 0);
                         await assertInLimbo(this.token, creationAmount);
                     });
                 });
-                describe('when is an invalid amount (less than 0.001 Ether).', function () {
-                    let invalidCreationAmount = web3.toWei(.5, "finney");
+                describe('when is an invalid amount (less than 0.001 CAO).', function () {
+                    let invalidCreationAmount = caoToWei(.0001);
                     it('fails.', async function () {
                         await assertRevert(this.token.startDistribution(owner, invalidCreationAmount, { from: distributionAddresses[0] }));
                         await assertInCirculation(this.token, 0);
@@ -104,7 +103,6 @@ contract('CacaoDistribution', async (accounts) => {
 
     describe('confirmDistribution', function () {
         describe('when there are enough cacaos in limbo', function () {
-            // One finney is 0.001, which is the minimum initialAmount of cacao that a user can transact (1 Cent of a MXN), Unit is Weis
             beforeEach(async function () {
                 await createCoin(this.token, creationAddresses, creationAmount);
                 await assertInLimbo(this.token, creationAmount);
