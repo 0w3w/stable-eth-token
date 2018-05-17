@@ -140,6 +140,7 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
 
     function onRescue(address _address) internal notFrozen returns (uint256 ammount) {
         uint256 rescuedAmmount = balances[_address];
+        require(rescuedAmmount > 0);
         balances[_address] = 0;
         cacaosInCirculation = cacaosInCirculation.sub(rescuedAmmount);
         emit Transfer(_address, address(0), rescuedAmmount);

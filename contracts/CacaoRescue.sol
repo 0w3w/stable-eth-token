@@ -27,22 +27,33 @@ contract CacaoRescue {
         require(canRescue(msg.sender));
         _;
     }
+    
+    /// @notice Gets the block number
+    function getBlockNumber() internal view returns (uint256 _blockNumber){
+        return block.number;
+    }
+
+    /// @notice Will log the blocknumber of the transaction
+    function registerTransaction(address _address, uint256 _blockNumber) internal {
+        _lastMovements[_address] = _blockNumber;
+    }
 
     /// @notice Will log the blocknumber of the transaction
     /// Use this to send a keep alive signal and prevent the cacao address to be rescued.
     function registerTransaction() public {
-        _lastMovements[msg.sender] = block.number;
+        registerTransaction(msg.sender, getBlockNumber());
     }
 
     /// @notice Will rescue lost Cacaos
     /// @param _address The address to rescue Cacaos from.
     function rescue(address _address) external senderCanRescue() {
-        require(blockThreshold <= block.number);
-        uint256 transactionBlockThreshold = block.number.sub(blockThreshold);
+        uint256 blockNumber = getBlockNumber();
+        require(blockThreshold <= blockNumber);
+        uint256 transactionBlockThreshold = blockNumber.sub(blockThreshold);
         require(_lastMovements[_address] <= transactionBlockThreshold);
         uint256 amountRescued = onRescue(_address);
-        cacaosRescued.add(amountRescued);
-        cacaosInHell.add(amountRescued);
+        cacaosRescued = cacaosRescued.add(amountRescued);
+        cacaosInHell = cacaosInHell.add(amountRescued);
         emit Rescued(_address, amountRescued);
     }    
 
