@@ -100,20 +100,20 @@ contract CacaoKeyRing {
     /// @notice Whether the _address is a creator address or not
     /// @param _address The address to verify
     /// @return True if the _address is a creator address
-    function isCreator(address _address) internal view returns (bool result) {
+    function isCreator(address _address) public view returns (bool result) {
         return _keyring[_address].isCreation && _keyring[_address].isValid;  
     }
 
     /// @notice Whether the _address is a distributor address or not
     /// @param _address The address to verify
     /// @return True if the _address is a distributor address
-    function isDistributor(address _address) internal view returns (bool result) {
+    function isDistributor(address _address) public view returns (bool result) {
         return _keyring[_address].isDistribution && _keyring[_address].isValid;
     }
 
     /// @notice Whether there is an active address replacement process or not
     /// @return True if there is an active process
-    function isReplacingAddresses() internal view returns (bool result){
+    function isReplacingAddresses() public view returns (bool result){
          // All replacements starts with at least one vote in favor
         return (_replacementVotesInFavor > 0 || _batchReseting);
     }
@@ -145,17 +145,17 @@ contract CacaoKeyRing {
         Some multisignature concepts from https://github.com/ethereum/wiki/wiki/Standardized_Contract_APIs
     */
 
-    /// @notice Requires a valid AddressMetadata and that the msg.sender can execute a replacement on it.
+    /// @notice Requires a valid AddressMetadata and that the _initAddress can execute a replacement on it.
     /// @dev Only creators can modify other creators, same for distributors.
-    function requireReplacementPermissions(AddressMetadata storage _addressToReplaceMetadata) private view {
+    function requireReplacementPermissions(address _initAddress, AddressMetadata storage _addressToReplaceMetadata) private view {
         // Is the original address a valid address to replace?
         require(_addressToReplaceMetadata.isValid);
-        // Can the msg.sender execute a replacement on that address?
+        // Can the _initAddress execute a replacement on that address?
         if (_addressToReplaceMetadata.isCreation) {
-            require(isCreator(msg.sender));
+            require(isCreator(_initAddress));
         }
         else if (_addressToReplaceMetadata.isDistribution) {
-            require(isDistributor(msg.sender));
+            require(isDistributor(_initAddress));
         }
         else {
             // If this is hit, something's wrong with the contract's code.
@@ -168,13 +168,28 @@ contract CacaoKeyRing {
     /// @dev This method will fail if:
     /// - There is an ongoing replacement process.
     /// - The _originalAddress is not a valid address.
-    /// - The msg.sender is not a valid creation/distribution address.
+    /// - The _signatureAddress is not a valid creation/distribution address.
+    /// @param _signatureAddress The adress that signed the message.
+    /// @param _hash The Ethereum-SHA-3 (Keccak-256) hash of a unique random message.
+    /// This function will NOT verify that the hash of the data is also correct. See sha3(...) solidity function.
+    /// @param _v The v part of a signed message.
+    /// @param _r The r part of a signed message.
+    /// @param _s The s part of a signed message.
     /// @param _originalAddress The address to be replaced
     /// @param _proposedAddress The proposed new address
     /// @return Revocation process _id
-    function replaceAddress(address _originalAddress, address _proposedAddress) external whenNotReplacing {
+    function replaceAddress(
+        address _signatureAddress,
+        bytes32 _hash,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s,
+        address _originalAddress,
+        address _proposedAddress
+    ) external whenNotReplacing {
         AddressMetadata storage _originalAddressMetadata = _keyring[_originalAddress];
-        requireReplacementPermissions(_originalAddressMetadata);
+        require(verify(_signatureAddress, _hash, _v, _r, _s));
+        requireReplacementPermissions(_signatureAddress, _originalAddressMetadata);
         // Is the new address valid?
         require(!_keyring[_proposedAddress].isCreation && !_keyring[_proposedAddress].isDistribution);
         // Start the replacement process
@@ -183,7 +198,7 @@ contract CacaoKeyRing {
         _replacementVotesInFavor = 1;
         _replacementVotesAgainst = 0;
         delete _replacementAddressVoted;
-        _replacementAddressVoted.push(msg.sender);
+        _replacementAddressVoted.push(_signatureAddress);
     }
 
     /// @notice Generates a vote to replace an address
@@ -201,7 +216,7 @@ contract CacaoKeyRing {
         for (uint i = 0; i < _replacementAddressVoted.length; i++) {
             require(_replacementAddressVoted[i] != msg.sender);
         }
-        requireReplacementPermissions(_originalAddressMetadata);
+        requireReplacementPermissions(msg.sender, _originalAddressMetadata);
         _replacementAddressVoted.push(msg.sender);
         // Vote
         if(_vote) {
@@ -231,6 +246,7 @@ contract CacaoKeyRing {
             else if (_originalAddressMetadata.isDistribution) {
                 setDistributionAddress(_newAddress);
             }
+            emit Replaced(_oldAddress, _newAddress);
         }
         else if(_replacementVotesAgainst >= voteMajority) {
             // Replacement will not proceed
@@ -246,12 +262,17 @@ contract CacaoKeyRing {
             delete _replacementAddressVoted;
         }
     }
-
+    
     /// @notice Start the process for batch reset the distribution addresses.
     /// @dev Will fail if:
     /// - There is an ongoing replacement process.
-    /// - The msg.sender is not an authorized creator.
+    /// - The _creatorAddress is not an authorized creator.
     function resetDistributionAddresses(
+        address _creatorAddress,
+        bytes32 _hash,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s,
         address _oldAddress1,
         address _oldAddress2,
         address _oldAddress3,
@@ -259,8 +280,9 @@ contract CacaoKeyRing {
         address _newAddress2,
         address _newAddress3)
     external whenNotReplacing {
-        // Verify sender is creator
-        require(isCreator(msg.sender));
+        // Verify _creatorAddress is creator and the signature is valid
+        require(isCreator(_creatorAddress));
+        require(verify(_creatorAddress, _hash, _v, _r, _s));
         // Are the old addresses valid?
         require(_keyring[_oldAddress1].isDistribution && _keyring[_oldAddress1].isValid);
         require(_keyring[_oldAddress2].isDistribution && _keyring[_oldAddress2].isValid);
@@ -271,19 +293,19 @@ contract CacaoKeyRing {
         require(!_keyring[_newAddress3].isCreation && !_keyring[_newAddress3].isDistribution);
         // Start process
         _batchOldAddress1 = _oldAddress1;
-        _batchOldAddress2 = _oldAddress1;
-        _batchOldAddress3 = _oldAddress1;
+        _batchOldAddress2 = _oldAddress2;
+        _batchOldAddress3 = _oldAddress3;
         _batchNewAddress1 = _newAddress1;
         _batchNewAddress2 = _newAddress2;
         _batchNewAddress3 = _newAddress3;
-        _batchProcessInitAddress = msg.sender;
+        _batchProcessInitAddress = _creatorAddress;
         _batchReseting = true;
     }
 
     /// @notice Confirms the batch reset the distribution addresses.
     /// @dev Will fail if:
-    /// - There is an ongoing replacement process.
-    /// - The msg.sender is not an authorized creator.
+    /// - There is not an ongoing replacement process.
+    /// - The _creatorAddresses are not an authorized creator.
     /// Read verify() function documentation for more information.
     function confirmBatchReset(
         address _publicCreatorAddress1, bytes32 _hash1, uint8 _v1, bytes32 _r1, bytes32 _s1,
@@ -291,12 +313,8 @@ contract CacaoKeyRing {
     ) external whenBatchReplacing {
         require(_batchProcessInitAddress != _publicCreatorAddress1);
         require(_batchProcessInitAddress != _publicCreatorAddress2);
-        require(!_usedHashes[_hash1]);
-        require(!_usedHashes[_hash2]);
         require(verify(_publicCreatorAddress1, _hash1, _v1, _r1, _s1));
         require(verify(_publicCreatorAddress2, _hash2, _v2, _r2, _s2));
-        _usedHashes[_hash1] = true;
-        _usedHashes[_hash2] = true;
         // Invalidate old addresses
         _keyring[_batchOldAddress1].isValid = false;
         _keyring[_batchOldAddress2].isValid = false;
@@ -305,6 +323,9 @@ contract CacaoKeyRing {
         setDistributionAddress(_batchNewAddress1);
         setDistributionAddress(_batchNewAddress2);
         setDistributionAddress(_batchNewAddress3);
+        emit Replaced(_batchOldAddress1, _batchNewAddress1);
+        emit Replaced(_batchOldAddress2, _batchNewAddress2);
+        emit Replaced(_batchOldAddress3, _batchNewAddress3);
         // End the process
         _batchOldAddress1 = address(0);
         _batchOldAddress2 = address(0);
@@ -335,7 +356,12 @@ contract CacaoKeyRing {
     ///     v = web3.toDecimal(v) 
     ///     _hash = '0x' + _hash
     /// @return True if has was signed by the _publicAddress.
-    function verify(address _publicAddress, bytes32 _hash, uint8 _v, bytes32 _r, bytes32 _s) internal pure returns(bool _success) {
-        return ecrecover(_hash, _v, _r, _s) == _publicAddress;
+    function verify(address _publicAddress, bytes32 _hash, uint8 _v, bytes32 _r, bytes32 _s) internal returns(bool _success) {
+        require(!_usedHashes[_hash]);
+        _usedHashes[_hash] = true;
+        return (ecrecover(_hash, _v, _r, _s) == _publicAddress);
     }
+    
+    /// @notice Triggers when and address is replaced.
+    event Replaced(address _originalAddress, address _newAddress);
 }
