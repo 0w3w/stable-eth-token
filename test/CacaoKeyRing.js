@@ -1,7 +1,8 @@
+import { caoToWei, createCoin, distributeCoin, signMessage, createAndDistributeCoin } from './helpers/helperMethods.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
-import { caoToWei, signMessage } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
+const CacaoRescueMock = artifacts.require("test/CacaoRescueMock.sol");
 
 require('chai')
     .use(require('chai-as-promised'))
@@ -38,6 +39,19 @@ async function assertIsNotDistributor(contractInstance, address) {
     assert(!isDistributor, "Key should not be a distributor");
 }
 
+async function startReplacement(contractInstance, signAddresses, message, oldAddress, newAddress, fromAddress) {
+    const signature00 = signMessage(signAddresses, message);
+    await contractInstance.replaceAddress(
+        signature00.address,
+        signature00.hash,
+        signature00.v,
+        signature00.r,
+        signature00.s,
+        oldAddress,
+        newAddress,
+        { from: fromAddress });
+}
+
 contract('KeyRing', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
@@ -67,14 +81,14 @@ contract('KeyRing', async (accounts) => {
                 signature00.s,
                 oldCreationAddress,
                 newCreationAddress,
-                { from:  accounts[11] });
+                { from: accounts[11] });
             await assertIsReplacingAddresses(this.token);
             await assertIsCreator(this.token, oldCreationAddress);
             await assertIsNotCreator(this.token, newCreationAddress);
 
             // Vote to replace address
             await this.token.voteToReplaceAddress(true, { from: creationAddresses[1] });
-            let confirmReplacementTask = this.token.voteToReplaceAddress(true, { from:  creationAddresses[2] });
+            let confirmReplacementTask = this.token.voteToReplaceAddress(true, { from: creationAddresses[2] });
             let replaceEvent = await inTransaction(confirmReplacementTask, 'Replaced');
             replaceEvent.args._originalAddress.should.be.equal(oldCreationAddress);
             replaceEvent.args._newAddress.should.be.equal(newCreationAddress);
@@ -101,7 +115,7 @@ contract('KeyRing', async (accounts) => {
                 signature00.s,
                 oldAddress,
                 newAddress,
-                { from:  accounts[11] });
+                { from: accounts[11] });
             await assertIsReplacingAddresses(this.token);
             await assertIsDistributor(this.token, oldAddress);
             await assertIsNotDistributor(this.token, newAddress);
@@ -173,6 +187,185 @@ contract('KeyRing', async (accounts) => {
             await assertIsNotDistributor(this.token, distributionAddresses[0]);
             await assertIsNotDistributor(this.token, distributionAddresses[1]);
             await assertIsNotDistributor(this.token, distributionAddresses[2]);
+        });
+    });
+
+    describe('replaceAddress', function () {
+        // Any account can do it.
+        const senderAddress = accounts[11];
+        describe('when valid _signatureAddress', function () {
+            describe('when not replacing', function () {
+                const newAddress = accounts[8];
+                describe('when replacing a creator address', function () {
+                    const signature00 = signMessage(creationAddresses[0], "unique.message.0");
+                    const oldAddress = creationAddresses[0];
+                    it("starts replacement process", async function () {
+                        await assertIsNotReplacingAddresses(this.token);
+                        await assertIsCreator(this.token, oldAddress);
+                        await assertIsNotCreator(this.token, newAddress);
+                        await this.token.replaceAddress(
+                            signature00.address,
+                            signature00.hash,
+                            signature00.v,
+                            signature00.r,
+                            signature00.s,
+                            oldAddress,
+                            newAddress,
+                            { from: senderAddress });
+                        await assertIsReplacingAddresses(this.token);
+                        await assertIsCreator(this.token, oldAddress);
+                        await assertIsNotCreator(this.token, newAddress);
+                    });
+                    describe('when replacing an unknown address', function () {
+                        const unknownOldAddress = accounts[9];
+                        it("reverts", async function () {
+                            await assertRevert(
+                                this.token.replaceAddress(
+                                    signature00.address,
+                                    signature00.hash,
+                                    signature00.v,
+                                    signature00.r,
+                                    signature00.s,
+                                    unknownOldAddress,
+                                    newAddress,
+                                    { from: senderAddress }));
+                        });
+                    });
+                });
+                describe('when replacing a distributor address', function () {
+                    const signature00 = signMessage(distributionAddresses[0], "unique.message.0");
+                    const oldAddress = distributionAddresses[0];
+                    it("starts replacement process", async function () {
+                        await assertIsNotReplacingAddresses(this.token);
+                        await assertIsDistributor(this.token, oldAddress);
+                        await assertIsNotDistributor(this.token, newAddress);
+                        await this.token.replaceAddress(
+                            signature00.address,
+                            signature00.hash,
+                            signature00.v,
+                            signature00.r,
+                            signature00.s,
+                            oldAddress,
+                            newAddress,
+                            { from: senderAddress });
+                        await assertIsReplacingAddresses(this.token);
+                        await assertIsDistributor(this.token, oldAddress);
+                        await assertIsNotDistributor(this.token, newAddress);
+                    });
+                    describe('when replacing an unknown address', function () {
+                        const unknownOldAddress = accounts[9];
+                        it("reverts", async function () {
+                            await assertRevert(
+                                this.token.replaceAddress(
+                                    signature00.address,
+                                    signature00.hash,
+                                    signature00.v,
+                                    signature00.r,
+                                    signature00.s,
+                                    unknownOldAddress,
+                                    newAddress,
+                                    { from: senderAddress }));
+                        });
+                    });
+                });
+            });
+            describe('when already replacing', function () {
+                let owner = accounts[8];
+                let creationAmount = caoToWei(1000);
+                let initialAmountToDistribute = caoToWei(100);
+                it("reverts", async function () {
+                    const signature00 = signMessage(creationAddresses[0], "unique.message.0");
+                    await this.token.replaceAddress(
+                        signature00.address,
+                        signature00.hash,
+                        signature00.v,
+                        signature00.r,
+                        signature00.s,
+                        creationAddresses[0],
+                        accounts[8],
+                        { from: senderAddress });
+                    const signature02 = signMessage(creationAddresses[1], "unique.message.1");
+                    await assertRevert(
+                        this.token.replaceAddress(
+                            signature02.address,
+                            signature02.hash,
+                            signature02.v,
+                            signature02.r,
+                            signature02.s,
+                            creationAddresses[1],
+                            accounts[9],
+                            { from: senderAddress }));
+                });
+                describe('when startCreation', function () {
+                    it("reverts", async function () {
+                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[8], senderAddress);
+
+                        await assertRevert(this.token.startCreation(creationAmount, { from: creationAddresses[0] }));
+                    });
+                });
+                describe('when startDistribution', function () {
+                    it("reverts", async function () {
+                        await createCoin(this.token, creationAddresses, creationAmount);
+                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[8], senderAddress);
+
+                        await assertRevert(this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] }));
+                    });
+                });
+                describe('when Destructing', function () {
+                    it("reverts", async function () {
+                        let destructionReference = "QWERY132456";
+                        await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[8], senderAddress);
+
+                        await assertRevert(this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] }));
+                    });
+                });
+                describe('when Rescuing', function () {
+                    it("reverts", async function () {
+                        let contractInstance = await CacaoRescueMock.new(
+                            creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4],
+                            distributionAddresses[0], distributionAddresses[1], distributionAddresses[2],
+                            13140000); // 6 years of blocks
+                        await createAndDistributeCoin(contractInstance, creationAddresses, distributionAddresses, creationAmount, owner);
+                        await contractInstance.registerTransactionBlockNumber(owner, 1095000); // 5.5 years ago
+                        await startReplacement(contractInstance, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[9], senderAddress);
+
+                        await assertRevert(contractInstance.rescue(owner, { from: distributionAddresses[0] }));
+                    });
+                });
+            });
+        });
+        describe('when invalid _signatureAddress', function () {
+            const creationSignature = signMessage(creationAddresses[0], "unique.message.0");
+            describe('when _signatureAddress does not match the replacement type', function () {
+                it("reverts", async function () {
+                    await assertRevert(
+                        this.token.replaceAddress(
+                            creationSignature.address,
+                            creationSignature.hash,
+                            creationSignature.v,
+                            creationSignature.r,
+                            creationSignature.s,
+                            distributionAddresses[1],
+                            accounts[9],
+                            { from: senderAddress }));
+                });
+            });
+            describe('when signature is invalid', function () {
+                it("reverts", async function () {
+                    const invalidHash = "0x5481c0fe170641bd2e0ff7f04161871829c1902d";
+                    await assertRevert(
+                        this.token.replaceAddress(
+                            creationSignature.address,
+                            invalidHash,
+                            creationSignature.v,
+                            creationSignature.r,
+                            creationSignature.s,
+                            creationAddresses[1],
+                            accounts[9],
+                            { from: senderAddress }));
+                });
+            });
         });
     });
 });
