@@ -1,6 +1,5 @@
-import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
-import { caoToWei } from './helpers/helperMethods.js';
+import { caoToWei, signMessage } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -37,30 +36,6 @@ async function assertIsNotCreator(contractInstance, address) {
 async function assertIsNotDistributor(contractInstance, address) {
     let isDistributor = await contractInstance.isDistributor(address);
     assert(!isDistributor, "Key should not be a distributor");
-}
-
-// eth_sign calculated the signature over keccak256("\x19Ethereum Signed Message:\n" + len(givenMessage) + givenMessage)))
-// this gives context to a signature and prevents signing of transactions.
-function messageHash(msg) {
-	return web3.sha3('\x19Ethereum Signed Message:\n' + msg.length + msg);
-}
-
-function signMessage(address, message) {
-    const messageHex = '0x' + Buffer.from(message).toString('hex');
-    const signature = web3.eth.sign(address, messageHex);
-    var r = signature.slice(0, 66)
-    var s = '0x' + signature.slice(66, 130)
-    var v = '0x' + signature.slice(130, 132)
-
-    return {
-        signature: signature,
-        messageHex: messageHex,
-        address : address,
-        hash: (new String(messageHash(message))).valueOf(), // Appended with Ethereum Signed Message
-        r : (new String(r)).valueOf(),
-        s : (new String(s)).valueOf(),
-        v : (web3.toDecimal(v) + 27)
-    };
 }
 
 contract('KeyRing', async (accounts) => {
