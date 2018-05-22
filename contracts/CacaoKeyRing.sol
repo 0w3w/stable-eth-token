@@ -207,17 +207,25 @@ contract CacaoKeyRing {
     /// Once the majority of the votes against are submitted, the process will be marked as finalized.
     /// This method will fail if:
     /// - There is no open revoking process.
-    /// - The msg.sender is not a valid creation address.
-    /// - The msg.sender has already voted.
+    /// - The _signatureAddress is not a valid creation address.
+    /// - The _signatureAddress has already voted.
     /// @param _vote True: in favor, False: against.
-    function voteToReplaceAddress(bool _vote) external whenAddressReplacing {
+    function voteToReplaceAddress(
+        address _signatureAddress,
+        bytes32 _hash,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s,
+        bool _vote
+    ) external whenAddressReplacing {
+        require(verify(_signatureAddress, _hash, _v, _r, _s));
         AddressMetadata storage _originalAddressMetadata = _keyring[_oldAddress];
         // Verify the address has not voted already
         for (uint i = 0; i < _replacementAddressVoted.length; i++) {
-            require(_replacementAddressVoted[i] != msg.sender);
+            require(_replacementAddressVoted[i] != _signatureAddress);
         }
-        requireReplacementPermissions(msg.sender, _originalAddressMetadata);
-        _replacementAddressVoted.push(msg.sender);
+        requireReplacementPermissions(_signatureAddress, _originalAddressMetadata);
+        _replacementAddressVoted.push(_signatureAddress);
         // Vote
         if(_vote) {
             _replacementVotesInFavor++;

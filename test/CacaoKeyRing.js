@@ -87,8 +87,25 @@ contract('KeyRing', async (accounts) => {
             await assertIsNotCreator(this.token, newCreationAddress);
 
             // Vote to replace address
-            await this.token.voteToReplaceAddress(true, { from: creationAddresses[1] });
-            let confirmReplacementTask = this.token.voteToReplaceAddress(true, { from: creationAddresses[2] });
+            const signature01 = signMessage(creationAddresses[1], "unique.message.1");
+            await this.token.voteToReplaceAddress(
+                signature01.address,
+                signature01.hash,
+                signature01.v,
+                signature01.r,
+                signature01.s,
+                true,
+                { from: accounts[11] });
+
+            const signature02 = signMessage(creationAddresses[2], "unique.message.2");
+            let confirmReplacementTask = this.token.voteToReplaceAddress(
+                signature02.address,
+                signature02.hash,
+                signature02.v,
+                signature02.r,
+                signature02.s,
+                true,
+                { from: accounts[11] });
             let replaceEvent = await inTransaction(confirmReplacementTask, 'Replaced');
             replaceEvent.args._originalAddress.should.be.equal(oldCreationAddress);
             replaceEvent.args._newAddress.should.be.equal(newCreationAddress);
@@ -121,7 +138,16 @@ contract('KeyRing', async (accounts) => {
             await assertIsNotDistributor(this.token, newAddress);
 
             // Vote to replace address
-            let confirmReplacementTask = this.token.voteToReplaceAddress(true, { from: distributionAddresses[1] });
+            const signature01 = signMessage(distributionAddresses[1], "unique.message.1");
+            let confirmReplacementTask = this.token.voteToReplaceAddress(
+                signature01.address,
+                signature01.hash,
+                signature01.v,
+                signature01.r,
+                signature01.s,
+                true,
+                { from: accounts[11] });
+
             let replaceEvent = await inTransaction(confirmReplacementTask, 'Replaced');
             replaceEvent.args._originalAddress.should.be.equal(oldAddress);
             replaceEvent.args._newAddress.should.be.equal(newAddress);
@@ -229,6 +255,36 @@ contract('KeyRing', async (accounts) => {
                                     unknownOldAddress,
                                     newAddress,
                                     { from: senderAddress }));
+                        });
+                    });
+                    describe('when replacing to a already used address', function () {
+                        it("to a creator address reverts", async function () {
+                            it("reverts", async function () {
+                                const usedAddress = creationAddresses[1];
+                                await assertRevert(
+                                    this.token.replaceAddress(
+                                        signature00.address,
+                                        signature00.hash,
+                                        signature00.v,
+                                        signature00.r,
+                                        signature00.s,
+                                        oldAddress,
+                                        usedAddress,
+                                        { from: senderAddress }));
+                            });
+                        });
+                        it("to a distributor address reverts", async function () {
+                            const usedAddress = distributionAddresses[1];
+                                await assertRevert(
+                                    this.token.replaceAddress(
+                                        signature00.address,
+                                        signature00.hash,
+                                        signature00.v,
+                                        signature00.r,
+                                        signature00.s,
+                                        oldAddress,
+                                        usedAddress,
+                                        { from: senderAddress }));
                         });
                     });
                 });
@@ -368,4 +424,206 @@ contract('KeyRing', async (accounts) => {
             });
         });
     });
+
+    describe('voteToReplaceAddress', function () {
+        // Any account can do it.
+        const senderAddress = accounts[11];
+        describe('when valid _signatureAddress', function () {
+            describe('when no process is active', function () {
+                it("reverts", async function () {
+                    const signature = signMessage(creationAddresses[1], "unique.message.2");
+                    await assertRevert(
+                        this.token.voteToReplaceAddress(
+                            signature.address,
+                            signature.hash,
+                            signature.v,
+                            signature.r,
+                            signature.s,
+                            true,
+                            { from: senderAddress }));
+                });
+            });
+            describe('when a batch replacement is active', function () {
+                it("reverts", async function () {
+                    const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+                    const signature00 = signMessage(creationAddresses[0], "unique.message.2");
+                    await this.token.resetDistributionAddresses(
+                        signature00.address,
+                        signature00.hash,
+                        signature00.v,
+                        signature00.r,
+                        signature00.s,
+                        distributionAddresses[0],
+                        distributionAddresses[1],
+                        distributionAddresses[2],
+                        newDistributionAddresses[0],
+                        newDistributionAddresses[1],
+                        newDistributionAddresses[2],
+                        { from: senderAddress });
+                    const signature = signMessage(creationAddresses[1], "unique.message.3");
+                    await assertRevert(
+                        this.token.voteToReplaceAddress(
+                            signature.address,
+                            signature.hash,
+                            signature.v,
+                            signature.r,
+                            signature.s,
+                            true,
+                            { from: senderAddress }));
+                });
+            });
+            describe('when an address replacement is active', function () {
+                const oldAddress = creationAddresses[0];
+                const newAddress = accounts[8];
+                beforeEach('setup contract for each test', async function () {
+                    await startReplacement(this.token, creationAddresses[0], "unique.message.0", oldAddress, newAddress, senderAddress);
+                });
+                describe('majority has not being achieved.', function () {
+                    it('succeeds and no event is emmited.', async function () {
+                        const signature01 = signMessage(creationAddresses[1], "unique.message.1");
+                        let voteTask = this.token.voteToReplaceAddress(
+                            signature01.address,
+                            signature01.hash,
+                            signature01.v,
+                            signature01.r,
+                            signature01.s,
+                            true,
+                            { from: senderAddress });
+
+                        await notInTransaction(voteTask, 'Replaced');
+                        await assertIsReplacingAddresses(this.token);
+                        await assertIsCreator(this.token, oldAddress);
+                        await assertIsNotCreator(this.token, newAddress);
+                    });
+                });
+                describe('majority has being achieved in favor.', function () {
+                    it('address is replaced, event is emmited.', async function () {
+                        const signature01 = signMessage(creationAddresses[1], "unique.message.1");
+                        await this.token.voteToReplaceAddress(
+                            signature01.address,
+                            signature01.hash,
+                            signature01.v,
+                            signature01.r,
+                            signature01.s,
+                            true,
+                            { from: senderAddress });
+                        const signature02 = signMessage(creationAddresses[2], "unique.message.2");
+                        let voteTask = this.token.voteToReplaceAddress(
+                            signature02.address,
+                            signature02.hash,
+                            signature02.v,
+                            signature02.r,
+                            signature02.s,
+                            true,
+                            { from: senderAddress });
+
+                        let replaceEvent = await inTransaction(voteTask, 'Replaced');
+                        replaceEvent.args._originalAddress.should.be.equal(oldAddress);
+                        replaceEvent.args._newAddress.should.be.equal(newAddress);
+                        await assertIsNotReplacingAddresses(this.token);
+                        await assertIsCreator(this.token, newAddress);
+                        await assertIsNotCreator(this.token, oldAddress);
+                    });
+                });
+                describe('majority has being achieved against.', function () {
+                    it('address is not replaced, event is not emmited.', async function () {
+                        const signature01 = signMessage(creationAddresses[1], "unique.message.1");
+                        await this.token.voteToReplaceAddress(
+                            signature01.address,
+                            signature01.hash,
+                            signature01.v,
+                            signature01.r,
+                            signature01.s,
+                            false,
+                            { from: senderAddress });
+                        const signature02 = signMessage(creationAddresses[2], "unique.message.2");
+                        await this.token.voteToReplaceAddress(
+                            signature02.address,
+                            signature02.hash,
+                            signature02.v,
+                            signature02.r,
+                            signature02.s,
+                            false,
+                            { from: senderAddress });
+                        const signature03 = signMessage(creationAddresses[3], "unique.message.3");
+                        let voteTask = this.token.voteToReplaceAddress(
+                            signature03.address,
+                            signature03.hash,
+                            signature03.v,
+                            signature03.r,
+                            signature03.s,
+                            false,
+                            { from: senderAddress });
+
+                        await notInTransaction(voteTask, 'Replaced');
+                        await assertIsNotReplacingAddresses(this.token);
+                        await assertIsCreator(this.token, oldAddress);
+                        await assertIsNotCreator(this.token, newAddress);
+                    });
+                });
+                describe('when already voted', function () {
+                    it("reverts", async function () {
+                        const signature01 = signMessage(creationAddresses[1], "unique.message.1");
+                        await this.token.voteToReplaceAddress(
+                            signature01.address,
+                            signature01.hash,
+                            signature01.v,
+                            signature01.r,
+                            signature01.s,
+                            true,
+                            { from: senderAddress });
+                        const signature02 = signMessage(creationAddresses[1], "unique.message.2");
+                        await assertRevert(
+                            this.token.voteToReplaceAddress(
+                                signature02.address,
+                                signature02.hash,
+                                signature02.v,
+                                signature02.r,
+                                signature02.s,
+                                true,
+                                { from: senderAddress }));
+
+                        await assertIsReplacingAddresses(this.token);
+                        await assertIsCreator(this.token, oldAddress);
+                        await assertIsNotCreator(this.token, newAddress);
+                    });
+                });
+            });
+        });
+        describe('when invalid _signatureAddress', function () {
+            describe('when _signatureAddress does not match the replacement type', function () {
+                const signature = signMessage(distributionAddresses[1], "unique.message.2");
+                it("reverts", async function () {
+                    await assertRevert(
+                        this.token.voteToReplaceAddress(
+                            signature.address,
+                            signature.hash,
+                            signature.v,
+                            signature.r,
+                            signature.s,
+                            true,
+                            { from: senderAddress }));
+                });
+            });
+            describe('when signature is invalid', function () {
+                it("reverts", async function () {
+                    const invalidHash = "0x5481c0fe170641bd2e0ff7f04161871829c1902d";
+                    const signature = signMessage(creationAddresses[1], "unique.message.2");
+                    await assertRevert(
+                        this.token.voteToReplaceAddress(
+                            signature.address,
+                            invalidHash,
+                            signature.v,
+                            signature.r,
+                            signature.s,
+                            true,
+                            { from: senderAddress }));
+                });
+            });
+        });
+    });
+    
+    describe('resetDistributionAddresses', function () {
+
+    });    
 });
