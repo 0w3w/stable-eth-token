@@ -22,7 +22,7 @@ contract CacaoKeyRing {
     uint8 private _replacementVotesInFavor = 0;
     uint8 private _replacementVotesAgainst = 0;
     address[] _replacementAddressVoted;
-    
+
     address private _batchOldAddress1;
     address private _batchOldAddress2;
     address private _batchOldAddress3;
@@ -101,7 +101,7 @@ contract CacaoKeyRing {
     /// @param _address The address to verify
     /// @return True if the _address is a creator address
     function isCreator(address _address) public view returns (bool result) {
-        return _keyring[_address].isCreation && _keyring[_address].isValid;  
+        return _keyring[_address].isCreation && _keyring[_address].isValid;
     }
 
     /// @notice Whether the _address is a distributor address or not
@@ -270,12 +270,12 @@ contract CacaoKeyRing {
             delete _replacementAddressVoted;
         }
     }
-    
-    /// @notice Start the process for batch reset the distribution addresses.
+
+    /// @notice Start the process for batch replacement of the distribution addresses.
     /// @dev Will fail if:
     /// - There is an ongoing replacement process.
     /// - The _creatorAddress is not an authorized creator.
-    function resetDistributionAddresses(
+    function replaceDistributionAddresses(
         address _creatorAddress,
         bytes32 _hash,
         uint8 _v,
@@ -315,14 +315,15 @@ contract CacaoKeyRing {
     /// - There is not an ongoing replacement process.
     /// - The _creatorAddresses are not an authorized creator.
     /// Read verify() function documentation for more information.
-    function confirmBatchReset(
-        address _publicCreatorAddress1, bytes32 _hash1, uint8 _v1, bytes32 _r1, bytes32 _s1,
-        address _publicCreatorAddress2, bytes32 _hash2, uint8 _v2, bytes32 _r2, bytes32 _s2
+    function confirmReplaceDistributionAddresses(
+        address _creatorAddress1, bytes32 _hash1, uint8 _v1, bytes32 _r1, bytes32 _s1,
+        address _creatorAddress2, bytes32 _hash2, uint8 _v2, bytes32 _r2, bytes32 _s2
     ) external whenBatchReplacing {
-        require(_batchProcessInitAddress != _publicCreatorAddress1);
-        require(_batchProcessInitAddress != _publicCreatorAddress2);
-        require(verify(_publicCreatorAddress1, _hash1, _v1, _r1, _s1));
-        require(verify(_publicCreatorAddress2, _hash2, _v2, _r2, _s2));
+        require(_batchProcessInitAddress != _creatorAddress1);
+        require(_batchProcessInitAddress != _creatorAddress2);
+        require(_creatorAddress1 != _creatorAddress2);
+        require(verify(_creatorAddress1, _hash1, _v1, _r1, _s1));
+        require(verify(_creatorAddress2, _hash2, _v2, _r2, _s2));
         // Invalidate old addresses
         _keyring[_batchOldAddress1].isValid = false;
         _keyring[_batchOldAddress2].isValid = false;
@@ -335,6 +336,25 @@ contract CacaoKeyRing {
         emit Replaced(_batchOldAddress2, _batchNewAddress2);
         emit Replaced(_batchOldAddress3, _batchNewAddress3);
         // End the process
+        endReplaceDistributionAddressesProcess();
+    }
+
+    function cancelReplacementOfDistributionAddresses(
+        address _creatorAddress,
+        bytes32 _hash,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external whenBatchReplacing
+    {
+        require(_batchProcessInitAddress == _creatorAddress);
+        require(verify(_creatorAddress, _hash, _v, _r, _s));
+        endReplaceDistributionAddressesProcess();
+    }
+
+    /// @notice Verify that a Hash was signed by the given address.
+    /// @dev This function doesn't do any validations, only call this when cancelling the batch replacement process.
+    function endReplaceDistributionAddressesProcess() private {
         _batchOldAddress1 = address(0);
         _batchOldAddress2 = address(0);
         _batchOldAddress3 = address(0);
@@ -361,7 +381,7 @@ contract CacaoKeyRing {
     ///     var v = '0x' + signature.slice(130, 132)
     /// v will be either "00" or "01". As a result, in order to use this value, you will have to parse it to an integer and then add 27.
     /// This will result in either a 27 or a 28.
-    ///     v = web3.toDecimal(v) 
+    ///     v = web3.toDecimal(v)
     ///     _hash = '0x' + _hash
     /// @return True if has was signed by the _publicAddress.
     function verify(address _publicAddress, bytes32 _hash, uint8 _v, bytes32 _r, bytes32 _s) internal returns(bool _success) {
@@ -369,7 +389,7 @@ contract CacaoKeyRing {
         _usedHashes[_hash] = true;
         return (ecrecover(_hash, _v, _r, _s) == _publicAddress);
     }
-    
+
     /// @notice Triggers when and address is replaced.
     event Replaced(address _originalAddress, address _newAddress);
 }
