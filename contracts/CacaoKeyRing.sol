@@ -322,6 +322,9 @@ contract CacaoKeyRing {
         require(_batchProcessInitAddress != _creatorAddress1);
         require(_batchProcessInitAddress != _creatorAddress2);
         require(_creatorAddress1 != _creatorAddress2);
+        // Verify _creatorAddress is creator and the signature is valid
+        require(isCreator(_creatorAddress1));
+        require(isCreator(_creatorAddress2));
         require(verify(_creatorAddress1, _hash1, _v1, _r1, _s1));
         require(verify(_creatorAddress2, _hash2, _v2, _r2, _s2));
         // Invalidate old addresses

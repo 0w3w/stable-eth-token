@@ -829,71 +829,258 @@ contract('KeyRing', async (accounts) => {
     });
 
     describe('confirmReplaceDistributionAddresses', function () {
-        describe('when valid signatures', function () {
-            describe('when batch replacement process is active', function () {
+        // Any account can do it.
+        const senderAddress = accounts[11];
+        const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+        describe('when batch replacement process is active', function () {
+            beforeEach('start batch replacement', async function () {
+                await startBatchReplacement(this.token, creationAddresses[0], "unique.message.1", distributionAddresses, newDistributionAddresses, senderAddress);
+                await assertIsReplacingAddresses(this.token);
+            });
+
+            describe('when valid signatures', function () {
                 it("addresses are replaced, event is emmited.", async function () {
-                    assert.fail('Implement!');
+                    const signature01 = signMessage(creationAddresses[1], "unique.message.2");
+                    const signature02 = signMessage(creationAddresses[2], "unique.message.3");
+                    await this.token.confirmReplaceDistributionAddresses(
+                        signature01.address,
+                        signature01.hash,
+                        signature01.v,
+                        signature01.r,
+                        signature01.s,
+                        signature02.address,
+                        signature02.hash,
+                        signature02.v,
+                        signature02.r,
+                        signature02.s,
+                        { from: senderAddress });
+
+                    await assertIsNotReplacingAddresses(this.token);
+                    await assertIsDistributor(this.token, newDistributionAddresses[0]);
+                    await assertIsDistributor(this.token, newDistributionAddresses[1]);
+                    await assertIsDistributor(this.token, newDistributionAddresses[2]);
+                    await assertIsNotDistributor(this.token, distributionAddresses[0]);
+                    await assertIsNotDistributor(this.token, distributionAddresses[1]);
+                    await assertIsNotDistributor(this.token, distributionAddresses[2]);
+                });
+
+                describe('are not creator addresses', function () {
+                    it("reverts", async function () {
+                        const signature01 = signMessage(distributionAddresses[1], "unique.message.2");
+                        const signature02 = signMessage(distributionAddresses[2], "unique.message.3");
+                        await assertRevert(
+                            this.token.confirmReplaceDistributionAddresses(
+                                signature01.address,
+                                signature01.hash,
+                                signature01.v,
+                                signature01.r,
+                                signature01.s,
+                                signature02.address,
+                                signature02.hash,
+                                signature02.v,
+                                signature02.r,
+                                signature02.s,
+                                { from: senderAddress }));
+                    });
+                });
+
+                describe('when signatures are the same', function () {
+                    it("reverts", async function () {
+                        const signature01 = signMessage(creationAddresses[1], "unique.message.1");
+                        await assertRevert(
+                            this.token.confirmReplaceDistributionAddresses(
+                                signature01.address,
+                                signature01.hash,
+                                signature01.v,
+                                signature01.r,
+                                signature01.s,
+                                signature01.address,
+                                signature01.hash,
+                                signature01.v,
+                                signature01.r,
+                                signature01.s,
+                                { from: senderAddress }));
+                    });
+                });
+
+                describe('when signatures are the same as the address that initiated the replacement process', function () {
+                    it("reverts", async function () {
+                        const signature01 = signMessage(creationAddresses[0], "unique.message.2");
+                        const signature02 = signMessage(creationAddresses[1], "unique.message.3");
+                        await assertRevert(
+                            this.token.confirmReplaceDistributionAddresses(
+                                signature01.address,
+                                signature01.hash,
+                                signature01.v,
+                                signature01.r,
+                                signature01.s,
+                                signature02.address,
+                                signature02.hash,
+                                signature02.v,
+                                signature02.r,
+                                signature02.s,
+                                { from: senderAddress }));
+                    });
                 });
             });
-            describe('when no process is active', function () {
+
+            describe('when signatures hashes do not match (invalid signature)', function () {
                 it("reverts", async function () {
-                    assert.fail('Implement!');
-                });
-            });
-            describe('when simple address replacement process is active', function () {
-                it("reverts", async function () {
-                    assert.fail('Implement!');
-                });
-            });
-            describe('are not creator addresses', function () {
-                it("reverts", async function () {
-                    assert.fail('Implement!');
+                    const signature01 = signMessage(creationAddresses[1], "unique.message.2");
+                    const signature02 = signMessage(creationAddresses[2], "unique.message.3");
+                    const invalidHash = "0x5481c0fe170641bd2e0ff7f04161871829c1902d";
+                    await assertRevert(this.token.confirmReplaceDistributionAddresses(
+                        signature01.address,
+                        invalidHash,
+                        signature01.v,
+                        signature01.r,
+                        signature01.s,
+                        signature02.address,
+                        signature02.hash,
+                        signature02.v,
+                        signature02.r,
+                        signature02.s,
+                        { from: senderAddress }));
                 });
             });
         });
 
-        describe('when signatures are the same', function () {
+        describe('when no process is active', function () {
             it("reverts", async function () {
-                assert.fail('Implement!');
+                const signature01 = signMessage(creationAddresses[1], "unique.message.2");
+                const signature02 = signMessage(creationAddresses[2], "unique.message.3");
+                await assertRevert(
+                    this.token.confirmReplaceDistributionAddresses(
+                        signature01.address,
+                        signature01.hash,
+                        signature01.v,
+                        signature01.r,
+                        signature01.s,
+                        signature02.address,
+                        signature02.hash,
+                        signature02.v,
+                        signature02.r,
+                        signature02.s,
+                        { from: senderAddress }));
             });
         });
 
-        describe('when signatures are the same as the address that initiated the replacement process', function () {
+        describe('when simple address replacement process is active', function () {
             it("reverts", async function () {
-                assert.fail('Implement!');
-            });
-        });
+                const oldCreationAddress = creationAddresses[0];
+                const newCreationAddress = accounts[8];
+                await assertIsNotReplacingAddresses(this.token);
+                await assertIsCreator(this.token, oldCreationAddress);
+                await assertIsNotCreator(this.token, newCreationAddress);
 
-        describe('when signatures hashes do not match (invalid signature)', function () {
-            it("reverts", async function () {
-                assert.fail('Implement!');
+                // Start Replacement (Replace Myself?)
+                const signature00 = signMessage(creationAddresses[0], "unique.message.0");
+                await this.token.replaceAddress(
+                    signature00.address,
+                    signature00.hash,
+                    signature00.v,
+                    signature00.r,
+                    signature00.s,
+                    oldCreationAddress,
+                    newCreationAddress,
+                    { from: accounts[11] });
+                await assertIsReplacingAddresses(this.token);
+                await assertIsCreator(this.token, oldCreationAddress);
+                await assertIsNotCreator(this.token, newCreationAddress);
+
+                // This should revert
+                const signature01 = signMessage(creationAddresses[1], "unique.message.2");
+                const signature02 = signMessage(creationAddresses[2], "unique.message.3");
+                await assertRevert(
+                    this.token.confirmReplaceDistributionAddresses(
+                        signature01.address,
+                        signature01.hash,
+                        signature01.v,
+                        signature01.r,
+                        signature01.s,
+                        signature02.address,
+                        signature02.hash,
+                        signature02.v,
+                        signature02.r,
+                        signature02.s,
+                        { from: senderAddress }));
             });
         });
     });
 
     describe('cancelReplacementOfDistributionAddresses', function () {
-        describe('when creator address', function () {
-            describe('when valid signature', function () {
-                describe('when creator address is the init address', function () {
-                    it("cancels the process", async function () {
-                        assert.fail('Implement!');
-                    });
-                });
-                describe('when creator address is not the init address', function () {
-                    it("reverts", async function () {
-                        assert.fail('Implement!');
-                    });
-                });
+        // Any account can do it.
+        const senderAddress = accounts[11];
+        const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+        describe('when theres a process to cancel', function () {
+            beforeEach('initial assertions before for each test', async function () {
+                await startBatchReplacement(this.token, creationAddresses[0], "unique.message.0", distributionAddresses, newDistributionAddresses, senderAddress);
+                await assertIsReplacingAddresses(this.token);
             });
-            describe('when invalid signature', function () {
-                it("reverts", async function () {
-                    assert.fail('Implement!');
+
+            describe('when creator address is sent', function () {
+                describe('when valid signature', function () {
+                    describe('when creator address is the init address', function () {
+                        it("cancels the process", async function () {
+                            const signature01 = signMessage(creationAddresses[0], "unique.message.1");
+                            await this.token.cancelReplacementOfDistributionAddresses(
+                                signature01.address,
+                                signature01.hash,
+                                signature01.v,
+                                signature01.r,
+                                signature01.s,
+                                { from: senderAddress });
+
+                            await assertIsNotReplacingAddresses(this.token);
+                            await assertIsDistributor(this.token, distributionAddresses[0]);
+                            await assertIsDistributor(this.token, distributionAddresses[1]);
+                            await assertIsDistributor(this.token, distributionAddresses[2]);
+                            await assertIsNotDistributor(this.token, newDistributionAddresses[0]);
+                            await assertIsNotDistributor(this.token, newDistributionAddresses[1]);
+                            await assertIsNotDistributor(this.token, newDistributionAddresses[2]);
+                        });
+                        describe('when creator address is not the init address', function () {
+                            const validSignatureInvalidAddress = signMessage(creationAddresses[1], "unique.message.1");
+                            it("reverts", async function () {
+                                await assertRevert(
+                                    this.token.cancelReplacementOfDistributionAddresses(
+                                        validSignatureInvalidAddress.address,
+                                        validSignatureInvalidAddress.hash,
+                                        validSignatureInvalidAddress.v,
+                                        validSignatureInvalidAddress.r,
+                                        validSignatureInvalidAddress.s,
+                                        { from: senderAddress }));
+                            });
+                        });
+                    });
+                });
+                describe('when invalid signature', function () {
+                    const validSignatureInvalidAddress = signMessage(creationAddresses[1], "unique.message.1");
+                    const invalidHash = "0x5481c0fe170641bd2e0ff7f04161871829c1902d";
+                    it("reverts", async function () {
+                        await assertRevert(
+                            this.token.cancelReplacementOfDistributionAddresses(
+                                validSignatureInvalidAddress.address,
+                                invalidHash,
+                                validSignatureInvalidAddress.v,
+                                validSignatureInvalidAddress.r,
+                                validSignatureInvalidAddress.s,
+                                { from: senderAddress }));
+                    });
                 });
             });
         });
-        describe('when valid signatures', function () {
+        describe('when no process to cancel', function () {
             it("reverts", async function () {
-                assert.fail('Implement!');
+                const signature01 = signMessage(creationAddresses[0], "unique.message.1");
+                await assertRevert(
+                    this.token.cancelReplacementOfDistributionAddresses(
+                        signature01.address,
+                        signature01.hash,
+                        signature01.v,
+                        signature01.r,
+                        signature01.s,
+                        { from: senderAddress }));
             });
         });
     });
