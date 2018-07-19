@@ -5,18 +5,18 @@ import "./SafeMath.sol";
 /// @notice Cacaos are considered lost after 5 years of no account movement
 /// which in solidity translates to no interaction with the contract after N blocks.
 /// Where N is calculated with an AVG of 6000 blocks per day ~= 2,190,000 year ~= 10,950,000 five years
-/// @author 0w3w
+/// @author Guillermo Hernandez (0w3w)
 contract CacaoRescue {
     using SafeMath for uint256;
 
     // Cacaos are considered lost after N years of no account movement, which translates to a block threshold from last transaction
     uint256 public blockThreshold = 10950000;
-    
+
     // The total amount of cacaos rescued
     uint256 public cacaosRescued = 0;
 
     // The rescued cacaos go to the "hell", a place in which pious people (who lost their keys) cacao's continue to exist
-    // before being obliterated from existence. (a.k.a. removing them from the public bank accounts to maintain parity) 
+    // before being obliterated from existence. (a.k.a. removing them from the public bank accounts to maintain parity)
     uint256 public cacaosInHell = 0;
 
     // Stores the mapping between addresses and LastTransactionMetadata
@@ -27,7 +27,7 @@ contract CacaoRescue {
         require(canRescue(msg.sender));
         _;
     }
-    
+
     /// @notice Gets the block number
     function getBlockNumber() internal view returns (uint256 _blockNumber){
         return block.number;
@@ -55,7 +55,7 @@ contract CacaoRescue {
         cacaosRescued = cacaosRescued.add(amountRescued);
         cacaosInHell = cacaosInHell.add(amountRescued);
         emit Rescued(_address, amountRescued);
-    }    
+    }
 
     /// @notice Will completely obliterate the _amount of cacaos from existence.
     /// @dev Will decrease _amount from the cacaosInHell.

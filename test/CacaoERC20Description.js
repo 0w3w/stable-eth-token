@@ -1,4 +1,5 @@
 const Cacao = artifacts.require("Cacao");
+import { caoToWei } from './helpers/helperMethods.js';
 
 require('chai')
   .use(require('chai-as-promised'))
@@ -8,6 +9,8 @@ require('chai')
 contract('StandardToken', accounts => {
   const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
   const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
+  const delegatedTransferAddress = accounts[8];
+  const delegatedTransferFee = caoToWei(1);
   const _name = 'Cacao';
   const _symbol = 'CAO';
   const _decimals = 3;
@@ -15,7 +18,8 @@ contract('StandardToken', accounts => {
   beforeEach(async function () {
     this.token = await Cacao.new(
         creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4], // Creation Address 1 is msg.sender
-        distributionAddresses[0], distributionAddresses[1], distributionAddresses[2]);
+        distributionAddresses[0], distributionAddresses[1], distributionAddresses[2], // Distribution Addresses
+        delegatedTransferAddress, delegatedTransferFee);
   });
 
   it('has a name', async function () {

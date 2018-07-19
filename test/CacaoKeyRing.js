@@ -72,18 +72,20 @@ async function startBatchReplacement(contractInstance, signAddress, message, old
 contract('KeyRing', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
-    const creationAmount = caoToWei(100);
+    const delegatedTransferAddress = accounts[8];
+    const delegatedTransferFee = caoToWei(1);
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
             creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4], // Creation Addresses (Including msg.sender as #1)
-            distributionAddresses[0], distributionAddresses[1], distributionAddresses[2]); // Distribution Addresses
+            distributionAddresses[0], distributionAddresses[1], distributionAddresses[2], // Distribution Addresses
+            delegatedTransferAddress, delegatedTransferFee);
     });
 
     describe('lifecycle', function () {
         it("replaces creator", async function () {
             const oldCreationAddress = creationAddresses[0];
-            const newCreationAddress = accounts[8];
+            const newCreationAddress = accounts[9];
             await assertIsNotReplacingAddresses(this.token);
             await assertIsCreator(this.token, oldCreationAddress);
             await assertIsNotCreator(this.token, newCreationAddress);
@@ -98,7 +100,7 @@ contract('KeyRing', async (accounts) => {
                 signature00.s,
                 oldCreationAddress,
                 newCreationAddress,
-                { from: accounts[11] });
+                { from: accounts[12] });
             await assertIsReplacingAddresses(this.token);
             await assertIsCreator(this.token, oldCreationAddress);
             await assertIsNotCreator(this.token, newCreationAddress);
@@ -112,7 +114,7 @@ contract('KeyRing', async (accounts) => {
                 signature01.r,
                 signature01.s,
                 true,
-                { from: accounts[11] });
+                { from: accounts[12] });
 
             const signature02 = signMessage(creationAddresses[2], "unique.message.2");
             let confirmReplacementTask = this.token.voteToReplaceAddress(
@@ -122,7 +124,7 @@ contract('KeyRing', async (accounts) => {
                 signature02.r,
                 signature02.s,
                 true,
-                { from: accounts[11] });
+                { from: accounts[12] });
             let replaceEvent = await inTransaction(confirmReplacementTask, 'Replaced');
             replaceEvent.args._originalAddress.should.be.equal(oldCreationAddress);
             replaceEvent.args._newAddress.should.be.equal(newCreationAddress);
@@ -134,7 +136,7 @@ contract('KeyRing', async (accounts) => {
 
         it("replaces distributor", async function () {
             const oldAddress = distributionAddresses[0];
-            const newAddress = accounts[8];
+            const newAddress = accounts[9];
             await assertIsNotReplacingAddresses(this.token);
             await assertIsDistributor(this.token, oldAddress);
             await assertIsNotDistributor(this.token, newAddress);
@@ -149,7 +151,7 @@ contract('KeyRing', async (accounts) => {
                 signature00.s,
                 oldAddress,
                 newAddress,
-                { from: accounts[11] });
+                { from: accounts[12] });
             await assertIsReplacingAddresses(this.token);
             await assertIsDistributor(this.token, oldAddress);
             await assertIsNotDistributor(this.token, newAddress);
@@ -163,7 +165,7 @@ contract('KeyRing', async (accounts) => {
                 signature01.r,
                 signature01.s,
                 true,
-                { from: accounts[11] });
+                { from: accounts[12] });
 
             let replaceEvent = await inTransaction(confirmReplacementTask, 'Replaced');
             replaceEvent.args._originalAddress.should.be.equal(oldAddress);
@@ -175,7 +177,7 @@ contract('KeyRing', async (accounts) => {
         });
 
         it("batch replace distributors", async function () {
-            const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+            const newDistributionAddresses = [accounts[9], accounts[10], accounts[11]];
             await assertIsNotReplacingAddresses(this.token);
             await assertIsDistributor(this.token, distributionAddresses[0]);
             await assertIsDistributor(this.token, distributionAddresses[1]);
@@ -221,7 +223,7 @@ contract('KeyRing', async (accounts) => {
                 signature02.v,
                 signature02.r,
                 signature02.s,
-                { from: accounts[11] }); // Any account can do it.
+                { from: accounts[12] }); // Any account can do it.
 
             await assertIsNotReplacingAddresses(this.token);
             await assertIsDistributor(this.token, newDistributionAddresses[0]);
@@ -235,10 +237,10 @@ contract('KeyRing', async (accounts) => {
 
     describe('replaceAddress', function () {
         // Any account can do it.
-        const senderAddress = accounts[11];
+        const senderAddress = accounts[12];
         describe('when valid _signatureAddress', function () {
             describe('when not replacing', function () {
-                const newAddress = accounts[8];
+                const newAddress = accounts[9];
                 describe('when replacing a creator address', function () {
                     const signature00 = signMessage(creationAddresses[0], "unique.message.0");
                     const oldAddress = creationAddresses[0];
@@ -260,7 +262,7 @@ contract('KeyRing', async (accounts) => {
                         await assertIsNotCreator(this.token, newAddress);
                     });
                     describe('when replacing an unknown address', function () {
-                        const unknownOldAddress = accounts[9];
+                        const unknownOldAddress = accounts[10];
                         it("reverts", async function () {
                             await assertRevert(
                                 this.token.replaceAddress(
@@ -326,7 +328,7 @@ contract('KeyRing', async (accounts) => {
                         await assertIsNotDistributor(this.token, newAddress);
                     });
                     describe('when replacing an unknown address', function () {
-                        const unknownOldAddress = accounts[9];
+                        const unknownOldAddress = accounts[10];
                         it("reverts", async function () {
                             await assertRevert(
                                 this.token.replaceAddress(
@@ -343,7 +345,7 @@ contract('KeyRing', async (accounts) => {
                 });
             });
             describe('when already replacing', function () {
-                let owner = accounts[8];
+                let owner = accounts[9];
                 let creationAmount = caoToWei(1000);
                 let initialAmountToDistribute = caoToWei(100);
                 it("reverts", async function () {
@@ -355,7 +357,7 @@ contract('KeyRing', async (accounts) => {
                         signature00.r,
                         signature00.s,
                         creationAddresses[0],
-                        accounts[8],
+                        accounts[9],
                         { from: senderAddress });
                     const signature02 = signMessage(creationAddresses[1], "unique.message.1");
                     await assertRevert(
@@ -366,12 +368,12 @@ contract('KeyRing', async (accounts) => {
                             signature02.r,
                             signature02.s,
                             creationAddresses[1],
-                            accounts[9],
+                            accounts[10],
                             { from: senderAddress }));
                 });
                 describe('when startCreation', function () {
                     it("reverts", async function () {
-                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[8], senderAddress);
+                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[9], senderAddress);
 
                         await assertRevert(this.token.startCreation(creationAmount, { from: creationAddresses[0] }));
                     });
@@ -379,7 +381,7 @@ contract('KeyRing', async (accounts) => {
                 describe('when startDistribution', function () {
                     it("reverts", async function () {
                         await createCoin(this.token, creationAddresses, creationAmount);
-                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[8], senderAddress);
+                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[9], senderAddress);
 
                         await assertRevert(this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] }));
                     });
@@ -388,7 +390,7 @@ contract('KeyRing', async (accounts) => {
                     it("reverts", async function () {
                         let destructionReference = "QWERY132456";
                         await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
-                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[8], senderAddress);
+                        await startReplacement(this.token, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[9], senderAddress);
 
                         await assertRevert(this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] }));
                     });
@@ -398,10 +400,11 @@ contract('KeyRing', async (accounts) => {
                         let contractInstance = await CacaoRescueMock.new(
                             creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4],
                             distributionAddresses[0], distributionAddresses[1], distributionAddresses[2],
+                            delegatedTransferAddress, delegatedTransferFee,
                             13140000); // 6 years of blocks
                         await createAndDistributeCoin(contractInstance, creationAddresses, distributionAddresses, creationAmount, owner);
                         await contractInstance.registerTransactionBlockNumber(owner, 1095000); // 5.5 years ago
-                        await startReplacement(contractInstance, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[9], senderAddress);
+                        await startReplacement(contractInstance, creationAddresses[0], "unique.message.0", creationAddresses[0], accounts[10], senderAddress);
 
                         await assertRevert(contractInstance.rescue(owner, { from: distributionAddresses[0] }));
                     });
@@ -420,7 +423,7 @@ contract('KeyRing', async (accounts) => {
                             creationSignature.r,
                             creationSignature.s,
                             distributionAddresses[1],
-                            accounts[9],
+                            accounts[10],
                             { from: senderAddress }));
                 });
             });
@@ -435,7 +438,7 @@ contract('KeyRing', async (accounts) => {
                             creationSignature.r,
                             creationSignature.s,
                             creationAddresses[1],
-                            accounts[9],
+                            accounts[10],
                             { from: senderAddress }));
                 });
             });
@@ -444,7 +447,7 @@ contract('KeyRing', async (accounts) => {
 
     describe('voteToReplaceAddress', function () {
         // Any account can do it.
-        const senderAddress = accounts[11];
+        const senderAddress = accounts[12];
         describe('when valid _signatureAddress', function () {
             describe('when no process is active', function () {
                 it("reverts", async function () {
@@ -462,7 +465,7 @@ contract('KeyRing', async (accounts) => {
             });
             describe('when a batch replacement is active', function () {
                 it("reverts", async function () {
-                    const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+                    const newDistributionAddresses = [accounts[9], accounts[10], accounts[11]];
                     const signature00 = signMessage(creationAddresses[0], "unique.message.2");
                     await this.token.replaceDistributionAddresses(
                         signature00.address,
@@ -491,7 +494,7 @@ contract('KeyRing', async (accounts) => {
             });
             describe('when an address replacement is active', function () {
                 const oldAddress = creationAddresses[0];
-                const newAddress = accounts[8];
+                const newAddress = accounts[9];
                 beforeEach('setup contract for each test', async function () {
                     await startReplacement(this.token, creationAddresses[0], "unique.message.0", oldAddress, newAddress, senderAddress);
                 });
@@ -642,8 +645,8 @@ contract('KeyRing', async (accounts) => {
 
     describe('replaceDistributionAddresses', function () {
         // Any account can do it.
-        const senderAddress = accounts[11];
-        const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+        const senderAddress = accounts[12];
+        const newDistributionAddresses = [accounts[9], accounts[10], accounts[11]];
 
         beforeEach('initial assertions before for each test', async function () {
             await assertIsNotReplacingAddresses(this.token);
@@ -702,7 +705,7 @@ contract('KeyRing', async (accounts) => {
                     });
                 });
                 describe('when replacing an unknown distribution address', function () {
-                    const unknownDistributionAddresses = [accounts[11], accounts[12], accounts[13]];
+                    const unknownDistributionAddresses = [accounts[12], accounts[13], accounts[14]];
                     it("reverts", async function () {
                         await assertRevert(
                             this.token.replaceDistributionAddresses(
@@ -741,8 +744,8 @@ contract('KeyRing', async (accounts) => {
                 });
             });
             describe('when already replacing', function () {
-                const secondRoundOfNewDistAddresses = [accounts[11], accounts[12], accounts[13]];
-                let owner = accounts[8];
+                const secondRoundOfNewDistAddresses = [accounts[12], accounts[13], accounts[14]];
+                let owner = accounts[9];
                 let creationAmount = caoToWei(1000);
                 let initialAmountToDistribute = caoToWei(100);
                 it("reverts", async function () {
@@ -794,6 +797,7 @@ contract('KeyRing', async (accounts) => {
                         let contractInstance = await CacaoRescueMock.new(
                             creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4],
                             distributionAddresses[0], distributionAddresses[1], distributionAddresses[2],
+                            delegatedTransferAddress, delegatedTransferFee,
                             13140000); // 6 years of blocks
                         await createAndDistributeCoin(contractInstance, creationAddresses, distributionAddresses, creationAmount, owner);
                         await contractInstance.registerTransactionBlockNumber(owner, 1095000); // 5.5 years ago
@@ -830,8 +834,8 @@ contract('KeyRing', async (accounts) => {
 
     describe('confirmReplaceDistributionAddresses', function () {
         // Any account can do it.
-        const senderAddress = accounts[11];
-        const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+        const senderAddress = accounts[12];
+        const newDistributionAddresses = [accounts[9], accounts[10], accounts[11]];
         describe('when batch replacement process is active', function () {
             beforeEach('start batch replacement', async function () {
                 await startBatchReplacement(this.token, creationAddresses[0], "unique.message.1", distributionAddresses, newDistributionAddresses, senderAddress);
@@ -968,7 +972,7 @@ contract('KeyRing', async (accounts) => {
         describe('when simple address replacement process is active', function () {
             it("reverts", async function () {
                 const oldCreationAddress = creationAddresses[0];
-                const newCreationAddress = accounts[8];
+                const newCreationAddress = accounts[9];
                 await assertIsNotReplacingAddresses(this.token);
                 await assertIsCreator(this.token, oldCreationAddress);
                 await assertIsNotCreator(this.token, newCreationAddress);
@@ -983,7 +987,7 @@ contract('KeyRing', async (accounts) => {
                     signature00.s,
                     oldCreationAddress,
                     newCreationAddress,
-                    { from: accounts[11] });
+                    { from: accounts[12] });
                 await assertIsReplacingAddresses(this.token);
                 await assertIsCreator(this.token, oldCreationAddress);
                 await assertIsNotCreator(this.token, newCreationAddress);
@@ -1010,8 +1014,8 @@ contract('KeyRing', async (accounts) => {
 
     describe('cancelReplacementOfDistributionAddresses', function () {
         // Any account can do it.
-        const senderAddress = accounts[11];
-        const newDistributionAddresses = [accounts[8], accounts[9], accounts[10]];
+        const senderAddress = accounts[12];
+        const newDistributionAddresses = [accounts[9], accounts[10], accounts[11]];
         describe('when theres a process to cancel', function () {
             beforeEach('initial assertions before for each test', async function () {
                 await startBatchReplacement(this.token, creationAddresses[0], "unique.message.0", distributionAddresses, newDistributionAddresses, senderAddress);

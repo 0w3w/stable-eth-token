@@ -3,7 +3,7 @@ import "./SafeMath.sol";
 import "./ERC20.sol";
 
 /// @title ERC20 Implementation
-/// @author https://github.com/OpenZeppelin/
+/// @author OpenZeppelin https://github.com/OpenZeppelin/
 contract StandardToken is ERC20 {
     using SafeMath for uint256;
     // Cacao balances for each account
@@ -56,12 +56,7 @@ contract StandardToken is ERC20 {
 
     // Transfer the balance from owner's account to another account
     function transfer(address _to, uint256 _value) public mitigateShortAddressAttack returns (bool success) {
-        require(_value > 0);
-        require(_to != address(0));
-        require(_value <= balances[msg.sender]);
-        balances[msg.sender] = balances[msg.sender].sub(_value);
-        balances[_to] = balances[_to].add(_value);
-        emit Transfer(msg.sender, _to, _value);
+        transferBetweenAccounts(msg.sender, _to, _value);
         return true;
     }
 
@@ -72,14 +67,9 @@ contract StandardToken is ERC20 {
     // deliberately authorized the sender of the message via some mechanism; we propose
     // these standardized APIs for approval:
     function transferFrom(address _from, address _to, uint256 _value) public mitigateShortAddressAttack returns (bool success) {
-        require(_to != address(0));
-        require(_value <= balances[_from]);
         require(_value <= allowed[_from][msg.sender]);
-
-        balances[_from] = balances[_from].sub(_value);
-        balances[_to] = balances[_to].add(_value);
+        transferBetweenAccounts(_from, _to, _value);
         allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-        emit Transfer(_from, _to, _value);
         return true;
     }
 
@@ -128,5 +118,22 @@ contract StandardToken is ERC20 {
         }
         emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
+    }
+
+    /// @notice send `_value` token to `_to` from `_from`
+    /// @dev Internal use only
+    /// @param _from The address of the sender
+    /// @param _to The address of the recipient
+    /// @param _value The amount of token to be transferred
+    /// @return Whether the transfer was successful or not
+    function transferBetweenAccounts(address _from, address _to, uint256 _value) internal {
+        require(_value > 0);
+        require(_to != address(0));
+        require(_value <= balances[_from]);
+
+        balances[_from] = balances[_from].sub(_value);
+        balances[_to] = balances[_to].add(_value);
+
+        emit Transfer(_from, _to, _value);
     }
 }

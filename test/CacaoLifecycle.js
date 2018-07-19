@@ -5,18 +5,21 @@ import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
 require('chai')
-  .use(require('chai-as-promised'))
-  .use(require('chai-bignumber')(web3.BigNumber))
-  .should();
+    .use(require('chai-as-promised'))
+    .use(require('chai-bignumber')(web3.BigNumber))
+    .should();
 
 contract('Cacao', async (accounts) => {
     let contractInstance;
     let initialamountInWei = caoToWei(1000)
+    const delegatedTransferAddress = accounts[8];
+    const delegatedTransferFee = caoToWei(1);
 
     beforeEach('setup contract for each test', async function () {
         contractInstance = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
-            accounts[5], accounts[6], accounts[7]); // Distribution Addresses
+            accounts[5], accounts[6], accounts[7], // Distribution Addresses
+            delegatedTransferAddress, delegatedTransferFee);
     });
 
     it("Lifecycle", async () => {
@@ -49,8 +52,8 @@ contract('Cacao', async (accounts) => {
         */
 
         // startDistribution
-        let initialOwner = accounts[8];
-        let pendingAmountInLimboInWei = caoToWei(900); 
+        let initialOwner = accounts[9];
+        let pendingAmountInLimboInWei = caoToWei(900);
         await assertInCirculation(contractInstance, 0);
         let initialDistributedamountInWei = caoToWei(100);
         await contractInstance.startDistribution(initialOwner, initialDistributedamountInWei, { from: accounts[5] });
@@ -64,11 +67,11 @@ contract('Cacao', async (accounts) => {
         await assertTotalSupply(contractInstance, initialamountInWei);
         await assertBalanceOf(contractInstance, initialOwner, initialDistributedamountInWei);
         await assertInLimbo(contractInstance, pendingAmountInLimboInWei);
-        
+
         /*
             Use (Simple Transfer)
         */
-        let to = accounts[9];
+        let to = accounts[10];
         let transferAmount = caoToWei(10);
         await assertBalanceOf(contractInstance, to, 0);
         await contractInstance.transfer(to, transferAmount, { from: initialOwner });
@@ -76,7 +79,7 @@ contract('Cacao', async (accounts) => {
         await assertTotalSupply(contractInstance, initialamountInWei);
         await assertBalanceOf(contractInstance, initialOwner, caoToWei(90));
         await assertBalanceOf(contractInstance, to, transferAmount);
-        
+
         /*
             Destruct
         */
@@ -101,5 +104,5 @@ contract('Cacao', async (accounts) => {
         await assertInCirculation(contractInstance, caoToWei(90));
         await assertInLimbo(contractInstance, pendingAmountInLimboInWei);
         await assertTotalSupply(contractInstance, caoToWei(994));
-   });
+    });
 });

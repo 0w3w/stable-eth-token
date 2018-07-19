@@ -1,7 +1,8 @@
 pragma solidity ^0.4.21;
+import "./ECRecovery.sol";
 
 /// @title Stores contract relevant addresses information
-/// @author 0w3w
+/// @author Guillermo Hernandez (0w3w)
 contract CacaoKeyRing {
     uint8 constant private _creatorMajority = 3;
     uint8 constant private _distributorMajority = 2;
@@ -77,7 +78,7 @@ contract CacaoKeyRing {
     /// @param _distributionAddress1 The distributor address #1
     /// @param _distributionAddress2 The distributor address #2
     /// @param _distributionAddress3 The distributor address #3
-    function CacaoKeyRing(
+    constructor (
         address _creatorAddress1,
         address _creatorAddress2,
         address _creatorAddress3,
@@ -101,14 +102,16 @@ contract CacaoKeyRing {
     /// @param _address The address to verify
     /// @return True if the _address is a creator address
     function isCreator(address _address) public view returns (bool result) {
-        return _keyring[_address].isCreation && _keyring[_address].isValid;
+        AddressMetadata memory _addressMetadata = _keyring[_address];
+        return _addressMetadata.isCreation && _addressMetadata.isValid;
     }
 
     /// @notice Whether the _address is a distributor address or not
     /// @param _address The address to verify
     /// @return True if the _address is a distributor address
     function isDistributor(address _address) public view returns (bool result) {
-        return _keyring[_address].isDistribution && _keyring[_address].isValid;
+        AddressMetadata memory _addressMetadata = _keyring[_address];
+        return _addressMetadata.isDistribution && _addressMetadata.isValid;
     }
 
     /// @notice Whether there is an active address replacement process or not
@@ -121,11 +124,12 @@ contract CacaoKeyRing {
     /// @notice Sets a creator address
     /// @dev Fails if the address is already a creator address
     function setCreatorAddress(address _address) private {
+        AddressMetadata storage _addressMetadata = _keyring[_address];
         assert(_address != address(0));
-        require(!_keyring[_address].isCreation && !_keyring[_address].isValid);
-        _keyring[_address].isCreation = true;
-        _keyring[_address].isDistribution = false;
-        _keyring[_address].isValid = true;
+        require(!_addressMetadata.isCreation && !_addressMetadata.isValid);
+        _addressMetadata.isCreation = true;
+        _addressMetadata.isDistribution = false;
+        _addressMetadata.isValid = true;
     }
 
     /// @notice Sets a distributor address
@@ -388,9 +392,16 @@ contract CacaoKeyRing {
     ///     _hash = '0x' + _hash
     /// @return True if has was signed by the _publicAddress.
     function verify(address _publicAddress, bytes32 _hash, uint8 _v, bytes32 _r, bytes32 _s) internal returns(bool _success) {
-        require(!_usedHashes[_hash]);
+        require(!_usedHashes[_hash], "_hash already used");
         _usedHashes[_hash] = true;
         return (ecrecover(_hash, _v, _r, _s) == _publicAddress);
+    }
+
+    function verify(bytes32 _hash, bytes _signature, address _expectedSigner) internal {
+        require(!_usedHashes[_hash], "_hash already used");
+        _usedHashes[_hash] = true;
+        address recovered = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(_hash), _signature);
+        require(recovered == _expectedSigner, "invalid signature");
     }
 
     /// @notice Triggers when and address is replaced.

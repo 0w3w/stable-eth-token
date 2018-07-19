@@ -3,7 +3,7 @@ import "./CacaoLibrary.sol";
 import "./SafeMath.sol";
 
 /// @title Abstract contract that controls the distribution of Cacaos
-/// @author 0w3w
+/// @author Guillermo Hernandez (0w3w)
 /// @notice 3 distribution keys, the contract needs 2/3 votes in order to distribute the coin. (A multi signature process)
 /// Only one process per address
 contract CacaoDistribution {

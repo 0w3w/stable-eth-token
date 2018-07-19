@@ -1,13 +1,13 @@
-import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
-import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertBurned, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
-import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
+import { createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
+import { assertBalanceOf, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import assertRevert from './helpers/assertRevert.js';
 const CacaoRescueMock = artifacts.require("test/CacaoRescueMock.sol");
 
-async function createContractWithBlockNumber(blockNumber, creationAddresses, distributionAddresses, ammount, owner) {
+async function createContractWithBlockNumber(blockNumber, creationAddresses, distributionAddresses, delegatedTransferAddress, delegatedTransferFee, ammount, owner) {
     let contractInstance = await CacaoRescueMock.new(
         creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4],
         distributionAddresses[0], distributionAddresses[1], distributionAddresses[2],
+        delegatedTransferAddress, delegatedTransferFee,
         blockNumber);
     await createAndDistributeCoin(contractInstance, creationAddresses, distributionAddresses, ammount, owner);
     return contractInstance;
@@ -31,9 +31,11 @@ require('chai')
 contract('CacaoRescue', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
+    const delegatedTransferAddress = accounts[8];
+    const delegatedTransferFee = caoToWei(1);
     const creationAmount = caoToWei(1000);
-    const owner = accounts[8];
-    const owner2 = accounts[9];
+    const owner = accounts[9];
+    const owner2 = accounts[10];
     const blockNumber6Years = 13140000;
     const blockNumer4YearsAgo = 4380000;
     const blockNumer5YearsAgo = 2190000;
@@ -44,6 +46,8 @@ contract('CacaoRescue', async (accounts) => {
             blockNumber6Years,
             creationAddresses,
             distributionAddresses,
+            delegatedTransferAddress,
+            delegatedTransferFee,
             creationAmount,
             owner
         );
@@ -52,7 +56,7 @@ contract('CacaoRescue', async (accounts) => {
     describe('Rescue', function () {
         describe('when the owner address last transaction was done no more than 5 years ago', function () {
             it("can't rescue", async function () {
-                await this.token.registerTransactionBlockNumber(owner, blockNumer4YearsAgo); // 4 years 
+                await this.token.registerTransactionBlockNumber(owner, blockNumer4YearsAgo); // 4 years
                 await assertRevert(this.token.rescue(owner, { from: distributionAddresses[0] }));
             });
         });
@@ -69,7 +73,7 @@ contract('CacaoRescue', async (accounts) => {
                     await assertInCirculation(this.token, creationAmount);
                     await assertInHell(this.token, 0);
                     await assertRescued(this.token, 0);
-                    await this.token.rescue(accountWithCacaos, { from: distributionAddresses[0] });                    
+                    await this.token.rescue(accountWithCacaos, { from: distributionAddresses[0] });
                     await assertBalanceOf(this.token, accountWithCacaos, 0);
                     await assertInCirculation(this.token, 0);
                     await assertInHell(this.token, creationAmount);

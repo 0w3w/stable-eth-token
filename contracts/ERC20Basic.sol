@@ -1,7 +1,7 @@
 pragma solidity ^0.4.21;
 
 /// @title Basic Ethereum ERC20 Token standard
-/// @author https://github.com/OpenZeppelin/
+/// @author OpenZeppelin https://github.com/OpenZeppelin/
 /// @dev Simpler version of ERC20 interface
 /// see https://github.com/ethereum/EIPs/issues/179
 contract ERC20Basic {
@@ -19,7 +19,7 @@ contract ERC20Basic {
 
     /// @notice Returns the total token supply.
     function totalSupply() public view returns (uint256 _totalSupply);
-    
+
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance
     function balanceOf(address _owner) public view returns (uint256 balance);

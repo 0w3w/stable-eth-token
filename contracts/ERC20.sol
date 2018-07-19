@@ -2,7 +2,7 @@ pragma solidity ^0.4.21;
 import "./ERC20Basic.sol";
 
 /// @title ERC20 Ethereum Token standard
-/// @author https://github.com/OpenZeppelin/
+/// @author OpenZeppelin https://github.com/OpenZeppelin/
 /// @dev https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
 contract ERC20 is ERC20Basic {
     /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`

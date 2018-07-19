@@ -2,7 +2,7 @@ pragma solidity ^0.4.21;
 
 /// @title SafeMath
 /// @dev Math operations with safety checks that throw on error
-/// @author https://github.com/OpenZeppelin/
+/// @author OpenZeppelin https://github.com/OpenZeppelin/
 library SafeMath {
     /// @notice Multiplies two numbers, throws on overflow.
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {

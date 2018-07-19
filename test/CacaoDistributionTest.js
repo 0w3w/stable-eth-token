@@ -1,5 +1,5 @@
-import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
-import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
+import { createCoin, caoToWei } from './helpers/helperMethods.js';
+import { assertBalanceOf, assertInLimbo, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
@@ -12,15 +12,18 @@ require('chai')
 contract('CacaoDistribution', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
-    let creationAmount =caoToWei(1000);
+    const delegatedTransferAddress = accounts[8];
+    const delegatedTransferFee = caoToWei(1);
+    let creationAmount = caoToWei(1000);
     let pendingAmountInLimbo = caoToWei(900);
     let initialAmountToDistribute = caoToWei(100);
-    let owner = accounts[8];
+    let owner = accounts[9];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
-            accounts[5], accounts[6], accounts[7]); // Distribution Addresses
+            accounts[5], accounts[6], accounts[7], // Distribution Addresses
+            delegatedTransferAddress, delegatedTransferFee);
     });
 
     describe('distribution lifecycle', function () {

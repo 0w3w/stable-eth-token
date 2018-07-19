@@ -21,8 +21,16 @@ const notInTransaction = async (tx, eventName) => {
   notInLogs(logs, eventName);
 };
 
+const listEvents = async (tx, eventName) => {
+  const { logs } = await tx;
+  let events = logs.filter(e => e.event === eventName);
+  assert.isNotEmpty(events);
+  return events;
+}
+
 module.exports = {
   inLogs,
   inTransaction,
-  notInTransaction
+  notInTransaction,
+  listEvents
 };

@@ -3,7 +3,7 @@ import "./CacaoLibrary.sol";
 import "./SafeMath.sol";
 
 /// @title Abstract contract that controls the creation of Cacaos
-/// @author 0w3w
+/// @author Guillermo Hernandez (0w3w)
 /// @notice 5 creation addresses, the contract needs a majority of votes from this addresses in order to create Cacaos. (A multisignature process)
 /// The creation addresses are unique to the contract and can be replaced by a vote from the majority.
 contract CacaoCreation {
@@ -12,7 +12,7 @@ contract CacaoCreation {
 
     // The created cacaos go to the "Limbo", an intermediate state between creation and distribution.
     uint256 public cacaosInLimbo = 0;
-    
+
     // Creation process state variables
     uint256 private _amountToCreate = 0;
     uint8 private _creationVotesInFavor = 0;
@@ -109,7 +109,7 @@ contract CacaoCreation {
     /// @param _amount The amount of cacaos to Issue.
     function draw(uint256 _amount) internal whenNotCreating {
         _amount.requireValidAmount();
-        require(cacaosInLimbo >= _amount);        
+        require(cacaosInLimbo >= _amount);
         cacaosInLimbo = cacaosInLimbo.sub(_amount);
     }
 

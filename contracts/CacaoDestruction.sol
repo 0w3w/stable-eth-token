@@ -3,7 +3,7 @@ import "./CacaoLibrary.sol";
 import "./SafeMath.sol";
 
 /// @title Abstract contract that controls the destruction of Cacaos
-/// @author 0w3w
+/// @author Guillermo Hernandez (0w3w)
 contract CacaoDestruction {
 
     using CacaoLibrary for uint256;

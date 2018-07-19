@@ -1,4 +1,4 @@
-import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
+import { assertInLimbo, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
 import { caoToWei } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
@@ -25,11 +25,14 @@ contract('CacaoCreation', async (accounts) => {
     let creationAddress2 = accounts[1];
     let creationAddress3 = accounts[2];
     let creationAddress4 = accounts[3];
+    let delegatedTransferFee = caoToWei(1);
+    const delegatedTransferAddress = accounts[8];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
-            accounts[5], accounts[6], accounts[7]); // Distribution Addresses
+            accounts[5], accounts[6], accounts[7], // Distribution Addresses
+            delegatedTransferAddress, delegatedTransferFee);
     });
 
     describe('creation lifecycle', function () {

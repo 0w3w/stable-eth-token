@@ -1,6 +1,6 @@
 import { createCoin, distributeCoin, createAndDistributeCoin, caoToWei } from './helpers/helperMethods.js';
 import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertBurned, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
-import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
+import { inTransaction } from './helpers/expectEvent.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -12,17 +12,20 @@ require('chai')
 contract('CacaoDestruction', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
+    const delegatedTransferFee = caoToWei(1);
+    const delegatedTransferAddress = accounts[8];
     let destructionReference = "QWERY132456";
     let creationAmount = caoToWei(1000);
     let amountToDistribute = caoToWei(100);
     let amountToBurn = caoToWei(10);
     let amountToObliterate = caoToWei(6);
-    let owner = accounts[8];
+    let owner = accounts[9];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
-            accounts[5], accounts[6], accounts[7]); // Distribution Addresses
+            accounts[5], accounts[6], accounts[7], // Distribution Addresses
+            delegatedTransferAddress, delegatedTransferFee);
     });
 
     describe('Destruct lifecycle', function () {
@@ -101,7 +104,7 @@ contract('CacaoDestruction', async (accounts) => {
                 });
             });
             describe('when the sender has enough balance to burn', function () {
-                let notEnoughBalanceAccount = accounts[9];
+                let notEnoughBalanceAccount = accounts[10];
                 it("fails", async function () {
                     await assertRevert(this.token.burn(amountToBurn, destructionReference, { from: notEnoughBalanceAccount }));
                 });

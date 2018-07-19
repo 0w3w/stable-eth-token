@@ -1,7 +1,7 @@
 pragma solidity ^0.4.21;
 
 /// @title Controls the freezing of the Contract
-/// @author 0w3w
+/// @author Guillermo Hernandez (0w3w)
 contract Freezable {
     bool public frozen = false;
 
