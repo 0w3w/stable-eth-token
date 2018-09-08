@@ -7,10 +7,11 @@ import "./CacaoDistribution.sol";
 import "./CacaoDestruction.sol";
 import "./CacaoRescue.sol";
 import "./Freezable.sol";
+import "./IVerifySignature.sol";
 
 /// @title Moneda Cacao Contract
 /// @author Guillermo Hernandez (0w3w)
-contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution, CacaoDestruction, CacaoRescue, Freezable {
+contract Cacao is IVerifySignature, StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution, CacaoDestruction, CacaoRescue, Freezable {
     using CacaoLibrary for uint256;
 
     constructor (
@@ -41,9 +42,8 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         _delegatedTransferFee = _delegatedFee;
     }
 
-    /// @notice The fallback funtion is disabled.
     function() public {
-        revert();
+        revert("The fallback funtion is disabled.");
     }
 
     /*
@@ -95,7 +95,6 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     */
 
     function canCreate(address _address) internal notFrozen returns (bool _isValid) {
-        require(!isReplacingAddresses());
         return isCreator(_address);
     }
 
@@ -104,7 +103,6 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     */
 
     function canDistribute(address _address) internal notFrozen returns (bool _isValid) {
-        require(!isReplacingAddresses());
         return isDistributor(_address);
     }
 
@@ -118,14 +116,13 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     */
 
     function canDestruct(address _sender) internal notFrozen returns (bool result) {
-        require(!isReplacingAddresses());
         return isDistributor(_sender);
     }
 
     function onBurn(uint256 _ammount) internal notFrozen {
-        require(_ammount > 0);
+        require(_ammount > 0, "Cannot burn 0 coins.");
         uint256 fromBalance = balances[msg.sender];
-        require(fromBalance >= _ammount);
+        require(fromBalance >= _ammount, "Not enough balance to burn.");
         balances[msg.sender] = balances[msg.sender].sub(_ammount);
         cacaosInCirculation = cacaosInCirculation.sub(_ammount);
         emit Transfer(msg.sender, address(0), _ammount);
@@ -139,13 +136,12 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     */
 
     function canRescue(address _address) internal notFrozen returns (bool result) {
-        require(!isReplacingAddresses());
         return isDistributor(_address);
     }
 
     function onRescue(address _address) internal notFrozen returns (uint256 ammount) {
         uint256 rescuedAmmount = balances[_address];
-        require(rescuedAmmount > 0);
+        require(rescuedAmmount > 0, "Cannot rescue 0 coins.");
         balances[_address] = 0;
         cacaosInCirculation = cacaosInCirculation.sub(rescuedAmmount);
         emit Transfer(_address, address(0), rescuedAmmount);
@@ -216,7 +212,8 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
         }
     }
 
-    /// @notice Signs a Delegated Transfer without needing a transaction, without any gas cost and without confirmation delay.
+    /// @notice Creates a Hash of the Delegated Transfer Data.
+    /// @dev This is used to sign the data without needing a transaction, without any gas cost and without confirmation delay.
     /// @param _from The address of the sender
     /// @param _to The address of the recipient
     /// @param _value The amount of token to be transferred
@@ -232,8 +229,23 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     }
 
     /*
+        IVerifySignature
+        Signature Verification
+    */
+
+    // Stores used hashes
+    mapping (bytes32 => bool) private _usedHashes;
+
+    function verify(bytes32 _hash, bytes _signature, address _expectedSigner) internal {
+        require(!_usedHashes[_hash], "_hash already used");
+        _usedHashes[_hash] = true;
+        address recovered = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(_hash), _signature);
+        require(recovered == _expectedSigner, "invalid signature");
+    }
+
+    /*
         Other
-        TODO Refactoring to simplify bytecode to decrease gas consumption at deployment.
+    */
 
     /// @notice Enable withdrawal of other tokens (by airdrop, forks maybe?)
     /// @param _tokenContract The token contract address to withdraw tokens from.
@@ -249,5 +261,4 @@ contract Cacao is StandardToken, CacaoKeyRing, CacaoCreation, CacaoDistribution,
     function withdrawEther(address _to) public onlyCreator {
         _to.transfer(address(this).balance);
     }
-    */
 }

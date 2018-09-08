@@ -1,11 +1,10 @@
 pragma solidity ^0.4.21;
 import "./ECRecovery.sol";
+import "./IVerifySignature.sol";
 
 /// @title Stores contract relevant addresses information
 /// @author Guillermo Hernandez (0w3w)
-contract CacaoKeyRing {
-    uint8 constant private _creatorMajority = 3;
-    uint8 constant private _distributorMajority = 2;
+contract CacaoKeyRing is IVerifySignature {
 
     // Structure that will save whether an address is a valid creation address or not, and if the key has been revoked or not.
     struct AddressMetadata {
@@ -17,55 +16,15 @@ contract CacaoKeyRing {
     // Stores the mapping between creator addresses and AddressMetadata
     mapping (address => AddressMetadata) private _keyring;
 
-    // Replacement process state variables
-    address private _oldAddress;
-    address private _newAddress;
-    uint8 private _replacementVotesInFavor = 0;
-    uint8 private _replacementVotesAgainst = 0;
-    address[] _replacementAddressVoted;
-
-    address private _batchOldAddress1;
-    address private _batchOldAddress2;
-    address private _batchOldAddress3;
-
-    address private _batchNewAddress1;
-    address private _batchNewAddress2;
-    address private _batchNewAddress3;
-
-    address private _batchProcessInitAddress;
-    bool private _batchReseting;
-
-    // Stores used replacement hashes
-    mapping (bytes32 => bool) private _usedHashes;
-
     /// @notice Methods decorated with this will only be able to be executed by a creator address.
     modifier onlyCreator() {
-        require(isCreator(msg.sender));
+        require(isCreator(msg.sender), "Only creator senders can execute.");
         _;
     }
 
     /// @notice Methods decorated with this will only be able to be executed by a distributor address.
     modifier onlyDistributor() {
-        require(isDistributor(msg.sender));
-        _;
-    }
-
-    /// @notice Methods decorated with this will only be able to be executed when there's no active address replacement process.
-    modifier whenNotReplacing() {
-        require(!isReplacingAddresses());
-        _;
-    }
-
-    /// @notice Methods decorated with this will only be able to be executed when there's an active address replacement process.
-    modifier whenAddressReplacing() {
-         // All replacements starts with at least one vote in favor
-        require(_replacementVotesInFavor > 0);
-        _;
-    }
-
-    /// @notice Methods decorated with this will only be able to be executed when there's an active batch address replacement process.
-    modifier whenBatchReplacing() {
-        require(_batchReseting);
+        require(isDistributor(msg.sender), "Only distributor senders can execute.");
         _;
     }
 
@@ -114,19 +73,12 @@ contract CacaoKeyRing {
         return _addressMetadata.isDistribution && _addressMetadata.isValid;
     }
 
-    /// @notice Whether there is an active address replacement process or not
-    /// @return True if there is an active process
-    function isReplacingAddresses() public view returns (bool result){
-         // All replacements starts with at least one vote in favor
-        return (_replacementVotesInFavor > 0 || _batchReseting);
-    }
-
     /// @notice Sets a creator address
-    /// @dev Fails if the address is already a creator address
+    /// @dev Fails if the address is already a creator
     function setCreatorAddress(address _address) private {
         AddressMetadata storage _addressMetadata = _keyring[_address];
         assert(_address != address(0));
-        require(!_addressMetadata.isCreation && !_addressMetadata.isValid);
+        require(!_addressMetadata.isCreation && !_addressMetadata.isValid, "Creator address already in use or invalidated");
         _addressMetadata.isCreation = true;
         _addressMetadata.isDistribution = false;
         _addressMetadata.isValid = true;
@@ -136,7 +88,7 @@ contract CacaoKeyRing {
     /// @dev Fails if the address is already a distributor address
     function setDistributionAddress(address _address) private {
         assert(_address != address(0));
-        require(!_keyring[_address].isDistribution && !_keyring[_address].isValid);
+        require(!_keyring[_address].isDistribution && !_keyring[_address].isValid, "Distribution address already in use or invalidated");
         _keyring[_address].isCreation = false;
         _keyring[_address].isDistribution = true;
         _keyring[_address].isValid = true;
@@ -145,265 +97,166 @@ contract CacaoKeyRing {
     /*
         SECURITY
         - Creator and Distribution address replacement.
-        - Distribution addresses batch replacement.
         Some multisignature concepts from https://github.com/ethereum/wiki/wiki/Standardized_Contract_APIs
     */
 
-    /// @notice Requires a valid AddressMetadata and that the _initAddress can execute a replacement on it.
-    /// @dev Only creators can modify other creators, same for distributors.
-    function requireReplacementPermissions(address _initAddress, AddressMetadata storage _addressToReplaceMetadata) private view {
-        // Is the original address a valid address to replace?
-        require(_addressToReplaceMetadata.isValid);
-        // Can the _initAddress execute a replacement on that address?
-        if (_addressToReplaceMetadata.isCreation) {
-            require(isCreator(_initAddress));
-        }
-        else if (_addressToReplaceMetadata.isDistribution) {
-            require(isDistributor(_initAddress));
-        }
-        else {
-            // If this is hit, something's wrong with the contract's code.
-            // Not a creator nor a distributor but somehow valid.
-            revert();
-        }
+    /// @notice Replaces a creation address
+    /// @param _oldAddress The address to be replaced
+    /// @param _newAddress The new address to be replaced
+    /// @param _nonce Random nonce generated by client
+    /// @param _address1 The 1st creation address that signed the transaction.
+    /// @param _signature1 The signature of the transaction signed by `_address1`
+    /// @param _address2 The 2nd creation address that signed the transaction.
+    /// @param _signature2 The signature of the transaction signed by `_address2`
+    /// @param _address3 The 3rd creation address that signed the transaction.
+    /// @param _signature3 The signature of the transaction signed by `_address3`
+    function replaceCreationAddress(
+        address _oldAddress,
+        address _newAddress,
+        bytes32 _nonce,
+        address _address1,
+        bytes _signature1,
+        address _address2,
+        bytes _signature2,
+        address _address3,
+        bytes _signature3) external {
+        // Verify old address validity
+        AddressMetadata storage _oldMetadata = _keyring[_oldAddress];
+        require(_oldMetadata.isValid, "The old address is not a valid address to replace.");
+        require(_oldMetadata.isCreation, "The old address is not a valid creation address.");
+        // Verify signatures
+        require(_address1 != _address2, "Signing addresses must be different");
+        require(_address2 != _address3, "Signing addresses must be different");
+        require(isCreator(_address1), "Invalid creation _address1 address");
+        require(isCreator(_address2), "Invalid creation _address2 address");
+        require(isCreator(_address3), "Invalid creation _address3 address");
+        bytes32 txHash = hashReplaceData(_oldAddress, _newAddress, _nonce);
+        verify(txHash, _signature1, _address1);
+        verify(txHash, _signature2, _address2);
+        verify(txHash, _signature3, _address3);
+        // Replace Creation Address
+        _oldMetadata.isValid = false;
+        setCreatorAddress(_newAddress);
+        emit Replaced(_oldAddress, _newAddress);
     }
 
-    /// @notice Starts the process to replace a creator address and executes the first vote in favor.
-    /// @dev This method will fail if:
-    /// - There is an ongoing replacement process.
-    /// - The _originalAddress is not a valid address.
-    /// - The _signatureAddress is not a valid creation/distribution address.
-    /// @param _signatureAddress The adress that signed the message.
-    /// @param _hash The Ethereum-SHA-3 (Keccak-256) hash of a unique random message.
-    /// This function will NOT verify that the hash of the data is also correct. See sha3(...) solidity function.
-    /// @param _v The v part of a signed message.
-    /// @param _r The r part of a signed message.
-    /// @param _s The s part of a signed message.
-    /// @param _originalAddress The address to be replaced
-    /// @param _proposedAddress The proposed new address
-    /// @return Revocation process _id
-    function replaceAddress(
-        address _signatureAddress,
-        bytes32 _hash,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s,
-        address _originalAddress,
-        address _proposedAddress
-    ) external whenNotReplacing {
-        AddressMetadata storage _originalAddressMetadata = _keyring[_originalAddress];
-        require(verify(_signatureAddress, _hash, _v, _r, _s));
-        requireReplacementPermissions(_signatureAddress, _originalAddressMetadata);
-        // Is the new address valid?
-        require(!_keyring[_proposedAddress].isCreation && !_keyring[_proposedAddress].isDistribution);
-        // Start the replacement process
-        _oldAddress = _originalAddress;
-        _newAddress = _proposedAddress;
-        _replacementVotesInFavor = 1;
-        _replacementVotesAgainst = 0;
-        delete _replacementAddressVoted;
-        _replacementAddressVoted.push(_signatureAddress);
+    /// @notice Replaces a distribution address
+    /// @param _oldAddress The address to be replaced
+    /// @param _newAddress The new address to be replaced
+    /// @param _nonce Random nonce generated by client
+    /// @param _address1 The 1st creation address that signed the transaction.
+    /// @param _signature1 The signature of the transaction signed by `_address1`
+    /// @param _address2 The 2nd creation address that signed the transaction.
+    /// @param _signature2 The signature of the transaction signed by `_address2`
+    function replaceDistributionAddress(
+        address _oldAddress,
+        address _newAddress,
+        bytes32 _nonce,
+        address _address1,
+        bytes _signature1,
+        address _address2,
+        bytes _signature2) external {
+        // Verify old address validity
+        AddressMetadata storage _oldMetadata = _keyring[_oldAddress];
+        require(_oldMetadata.isValid, "The old address is not a valid address to replace.");
+        require(_oldMetadata.isDistribution, "The old address is not a valid distribution address.");
+        // Verify signatures
+        require(_address1 != _address2, "Signing addresses must be different");
+        require(isDistributor(_address1), "Invalid distributor _address1 address");
+        require(isDistributor(_address2), "Invalid distributor _address2 address");
+        bytes32 txHash = hashReplaceData(_oldAddress, _newAddress, _nonce);
+        verify(txHash, _signature1, _address1);
+        verify(txHash, _signature2, _address2);
+        // Replace Creation Address
+        _oldMetadata.isValid = false;
+        setDistributionAddress(_newAddress);
+        emit Replaced(_oldAddress, _newAddress);
     }
 
-    /// @notice Generates a vote to replace an address
-    /// @dev The contract needs a majority of votes in favor in order to the address to be revoked.
-    /// Once the majority of the votes in favor are submitted, the address will be revoked and the process will be marked as finalized.
-    /// Once the majority of the votes against are submitted, the process will be marked as finalized.
-    /// This method will fail if:
-    /// - There is no open revoking process.
-    /// - The _signatureAddress is not a valid creation address.
-    /// - The _signatureAddress has already voted.
-    /// @param _vote True: in favor, False: against.
-    function voteToReplaceAddress(
-        address _signatureAddress,
-        bytes32 _hash,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s,
-        bool _vote
-    ) external whenAddressReplacing {
-        require(verify(_signatureAddress, _hash, _v, _r, _s));
-        AddressMetadata storage _originalAddressMetadata = _keyring[_oldAddress];
-        // Verify the address has not voted already
-        for (uint i = 0; i < _replacementAddressVoted.length; i++) {
-            require(_replacementAddressVoted[i] != _signatureAddress);
-        }
-        requireReplacementPermissions(_signatureAddress, _originalAddressMetadata);
-        _replacementAddressVoted.push(_signatureAddress);
-        // Vote
-        if(_vote) {
-            _replacementVotesInFavor++;
-        }
-        else {
-            _replacementVotesAgainst++;
-        }
-        // Was Majority achieved?
-        uint voteMajority = 0;
-        if (_originalAddressMetadata.isCreation) {
-            voteMajority = _creatorMajority;
-        }
-        else if (_originalAddressMetadata.isDistribution) {
-            voteMajority = _distributorMajority;
-        }
-        bool majorityAchieved = false;
-        if(_replacementVotesInFavor >= voteMajority) {
-            // Proceed with the replacement!
-            majorityAchieved = true;
-            // Invalidate old address
-            _keyring[_oldAddress].isValid = false;
-            // Set new address
-            if (_originalAddressMetadata.isCreation) {
-                setCreatorAddress(_newAddress);
-            }
-            else if (_originalAddressMetadata.isDistribution) {
-                setDistributionAddress(_newAddress);
-            }
-            emit Replaced(_oldAddress, _newAddress);
-        }
-        else if(_replacementVotesAgainst >= voteMajority) {
-            // Replacement will not proceed
-            majorityAchieved = true;
-
-        }
-        // Process completed, clean
-        if(majorityAchieved) {
-            _oldAddress = address(0);
-            _newAddress = address(0);
-            _replacementVotesInFavor = 0;
-            _replacementVotesAgainst = 0;
-            delete _replacementAddressVoted;
-        }
+    /// @notice Creates a Hash of address replacement data.
+    /// @dev This is used to sign the data without needing a transaction, without any gas cost and without confirmation delay.
+    /// @param _oldAddress The address to be replaced
+    /// @param _newAddress The new address to be replaced
+    /// @param _nonce Random nonce generated by client
+    /// @return The hash of the transaction calculated using by `msg.sender`
+    function hashReplaceData(address _oldAddress, address _newAddress, bytes32 _nonce) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_oldAddress, _newAddress, _nonce));
     }
 
-    /// @notice Start the process for batch replacement of the distribution addresses.
-    /// @dev Will fail if:
-    /// - There is an ongoing replacement process.
-    /// - The _creatorAddress is not an authorized creator.
+/*
+    /// @notice Batch replacement of the distribution addresses.
     function replaceDistributionAddresses(
-        address _creatorAddress,
-        bytes32 _hash,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s,
-        address _oldAddress1,
-        address _oldAddress2,
-        address _oldAddress3,
-        address _newAddress1,
-        address _newAddress2,
-        address _newAddress3)
-    external whenNotReplacing {
-        // Verify _creatorAddress is creator and the signature is valid
-        require(isCreator(_creatorAddress));
-        require(verify(_creatorAddress, _hash, _v, _r, _s));
-        // Are the old addresses valid?
-        require(_keyring[_oldAddress1].isDistribution && _keyring[_oldAddress1].isValid);
-        require(_keyring[_oldAddress2].isDistribution && _keyring[_oldAddress2].isValid);
-        require(_keyring[_oldAddress3].isDistribution && _keyring[_oldAddress3].isValid);
-        // Are the new addresses valid?
-        require(!_keyring[_newAddress1].isCreation && !_keyring[_newAddress1].isDistribution);
-        require(!_keyring[_newAddress2].isCreation && !_keyring[_newAddress2].isDistribution);
-        require(!_keyring[_newAddress3].isCreation && !_keyring[_newAddress3].isDistribution);
-        // Start process
-        _batchOldAddress1 = _oldAddress1;
-        _batchOldAddress2 = _oldAddress2;
-        _batchOldAddress3 = _oldAddress3;
-        _batchNewAddress1 = _newAddress1;
-        _batchNewAddress2 = _newAddress2;
-        _batchNewAddress3 = _newAddress3;
-        _batchProcessInitAddress = _creatorAddress;
-        _batchReseting = true;
-    }
-
-    /// @notice Confirms the batch reset the distribution addresses.
-    /// @dev Will fail if:
-    /// - There is not an ongoing replacement process.
-    /// - The _creatorAddresses are not an authorized creator.
-    /// Read verify() function documentation for more information.
-    function confirmReplaceDistributionAddresses(
-        address _creatorAddress1, bytes32 _hash1, uint8 _v1, bytes32 _r1, bytes32 _s1,
-        address _creatorAddress2, bytes32 _hash2, uint8 _v2, bytes32 _r2, bytes32 _s2
-    ) external whenBatchReplacing {
-        require(_batchProcessInitAddress != _creatorAddress1);
-        require(_batchProcessInitAddress != _creatorAddress2);
-        require(_creatorAddress1 != _creatorAddress2);
-        // Verify _creatorAddress is creator and the signature is valid
-        require(isCreator(_creatorAddress1));
-        require(isCreator(_creatorAddress2));
-        require(verify(_creatorAddress1, _hash1, _v1, _r1, _s1));
-        require(verify(_creatorAddress2, _hash2, _v2, _r2, _s2));
+        address[] _oldAddresses,
+        address[] _newAddresses,
+        bytes32 _nonce,
+        address[] _creationAddresses,
+        bytes _signature1,
+        bytes _signature2,
+        bytes _signature3)
+    external {
+        require(_oldAddresses.length == 3, "There should be exactly 3 _oldAddresses");
+        require(_newAddresses.length == 3, "There should be exactly 3 _newAddresses");
+        // Verify old addresses validity
+        verifyOldAddressValidity(_oldAddresses, false);
+        // Verify signatures
+        bytes32 txHash = hashBatchReplaceData(_oldAddresses, _newAddresses, _nonce);
+        verifyBatchReplacementSignatures(txHash, _creationAddresses, _signature1, _signature2, _signature3);
         // Invalidate old addresses
-        _keyring[_batchOldAddress1].isValid = false;
-        _keyring[_batchOldAddress2].isValid = false;
-        _keyring[_batchOldAddress3].isValid = false;
+        _keyring[_oldAddresses[0]].isValid = false;
+        _keyring[_oldAddresses[1]].isValid = false;
+        _keyring[_oldAddresses[2]].isValid = false;
         // Set new addresses
-        setDistributionAddress(_batchNewAddress1);
-        setDistributionAddress(_batchNewAddress2);
-        setDistributionAddress(_batchNewAddress3);
-        emit Replaced(_batchOldAddress1, _batchNewAddress1);
-        emit Replaced(_batchOldAddress2, _batchNewAddress2);
-        emit Replaced(_batchOldAddress3, _batchNewAddress3);
-        // End the process
-        endReplaceDistributionAddressesProcess();
+        setDistributionAddress(_newAddresses[0]);
+        setDistributionAddress(_newAddresses[1]);
+        setDistributionAddress(_newAddresses[2]);
+        emit Replaced(_oldAddresses[0], _newAddresses[0]);
+        emit Replaced(_oldAddresses[1], _newAddresses[1]);
+        emit Replaced(_oldAddresses[2], _newAddresses[2]);
     }
 
-    function cancelReplacementOfDistributionAddresses(
-        address _creatorAddress,
-        bytes32 _hash,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) external whenBatchReplacing
-    {
-        require(_batchProcessInitAddress == _creatorAddress);
-        require(verify(_creatorAddress, _hash, _v, _r, _s));
-        endReplaceDistributionAddressesProcess();
+    /// @notice Creates a Hash of address batch replacement data.
+    /// @dev This is used to sign the data without needing a transaction, without any gas cost and without confirmation delay.
+    /// @param _oldAddresses The addresses to be replaced
+    /// @param _newAddresses The new addresses
+    /// @param _nonce Random nonce generated by client
+    /// @return The hash of the transaction calculated using by `msg.sender`
+    function hashBatchReplaceData(
+        address[] _oldAddresses,
+        address[] _newAddresses,
+        bytes32 _nonce) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_oldAddresses, _newAddresses, _nonce));
     }
 
-    /// @notice Verify that a Hash was signed by the given address.
-    /// @dev This function doesn't do any validations, only call this when cancelling the batch replacement process.
-    function endReplaceDistributionAddressesProcess() private {
-        _batchOldAddress1 = address(0);
-        _batchOldAddress2 = address(0);
-        _batchOldAddress3 = address(0);
-        _batchNewAddress1 = address(0);
-        _batchNewAddress2 = address(0);
-        _batchNewAddress3 = address(0);
-        _batchProcessInitAddress = address(0);
-        _batchReseting = false;
+    function verifyBatchReplacementSignatures (
+        bytes32 txHash,
+        address[] _creationAddresses,
+        bytes _signature1,
+        bytes _signature2,
+        bytes _signature3 ) private {
+        require(_creationAddresses.length == 3, "There should be exactly 3 signing addresses");
+        require(_creationAddresses[0] != _creationAddresses[1], "Signing addresses must be different");
+        require(_creationAddresses[1] != _creationAddresses[2], "Signing addresses must be different");
+        require(isCreator(_creationAddresses[0]), "Invalid [0] creation address");
+        require(isCreator(_creationAddresses[1]), "Invalid [1] creation address");
+        require(isCreator(_creationAddresses[2]), "Invalid [2] creation address");
+        verify(txHash, _signature1, _creationAddresses[0]);
+        verify(txHash, _signature2, _creationAddresses[1]);
+        verify(txHash, _signature3, _creationAddresses[2]);
     }
 
-    /// @notice Verify that a Hash was signed by the given address.
-    /// @param _publicAddress The adress to test.
-    /// @param _hash The Ethereum-SHA-3 (Keccak-256) hash of a known data.
-    /// This function will NOT verify that the hash of the data is also correct. See sha3(...) solidity function.
-    /// @param _v The v part of a signed message.
-    /// @param _r The r part of a signed message.
-    /// @param _s The s part of a signed message.
-    /// @dev See https://github.com/ethereum/wiki/wiki/JavaScript-API#web3ethsign for more information;
-    /// E.G. Getting that info with web3:
-    ///     var _hash = web3.sha3('Schoolbus')
-    ///     var signature = web3.eth.sign(web3.eth.accounts[0], _hash)
-    ///     var r = signature.slice(0, 66)
-    ///     var s = '0x' + signature.slice(66, 130)
-    ///     var v = '0x' + signature.slice(130, 132)
-    /// v will be either "00" or "01". As a result, in order to use this value, you will have to parse it to an integer and then add 27.
-    /// This will result in either a 27 or a 28.
-    ///     v = web3.toDecimal(v)
-    ///     _hash = '0x' + _hash
-    /// @return True if has was signed by the _publicAddress.
-    function verify(address _publicAddress, bytes32 _hash, uint8 _v, bytes32 _r, bytes32 _s) internal returns(bool _success) {
-        require(!_usedHashes[_hash], "_hash already used");
-        _usedHashes[_hash] = true;
-        return (ecrecover(_hash, _v, _r, _s) == _publicAddress);
+    function verifyOldAddressValidity(address[] _oldAddresses, bool isCreation) private view {
+        for (uint i = 0; i < _oldAddresses.length; i++) {
+            AddressMetadata storage _oldMetadata = _keyring[_oldAddresses[i]];
+            require(_oldMetadata.isValid, "address is not a valid address to replace.");
+            if (isCreation) {
+                require(_oldMetadata.isCreation, "address is not a valid creation address.");
+            } else {
+                require(_oldMetadata.isDistribution, "address is not a valid distribution address.");
+            }
+        }
     }
+*/
 
-    function verify(bytes32 _hash, bytes _signature, address _expectedSigner) internal {
-        require(!_usedHashes[_hash], "_hash already used");
-        _usedHashes[_hash] = true;
-        address recovered = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(_hash), _signature);
-        require(recovered == _expectedSigner, "invalid signature");
-    }
-
-    /// @notice Triggers when and address is replaced.
+    /// @notice Triggers when an address is replaced.
     event Replaced(address _originalAddress, address _newAddress);
 }
