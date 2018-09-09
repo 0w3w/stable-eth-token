@@ -1,6 +1,6 @@
-import { createCoin, caoToWei } from './helpers/helperMethods.js';
+import { createCoin, caoToWei, getNonce, getHashOfDistributeData } from './helpers/helperMethods.js';
 import { assertBalanceOf, assertInLimbo, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
-import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
+import { inTransaction } from './helpers/expectEvent.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -18,6 +18,7 @@ contract('CacaoDistribution', async (accounts) => {
     let pendingAmountInLimbo = caoToWei(900);
     let initialAmountToDistribute = caoToWei(100);
     let owner = accounts[9];
+    const transactionAddress = accounts[10];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
@@ -28,18 +29,24 @@ contract('CacaoDistribution', async (accounts) => {
 
     describe('distribution lifecycle', function () {
         it("succeeds", async function () {
-            await createCoin(this.token, creationAddresses, creationAmount);
-
-            // startDistribution
+            await createCoin(this.token, creationAddresses, creationAmount, transactionAddress);
+            // Distribute
             await assertInCirculation(this.token, 0);
             await assertTotalSupply(this.token, creationAmount);
-            await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
-            await assertInCirculation(this.token, 0);
-            await assertTotalSupply(this.token, creationAmount);
-
-            // confirmDistribution
-            let confirmDistributionTask = this.token.confirmDistribution(owner, true, { from: distributionAddresses[1] });
-            let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
+            let nonce = getNonce();
+            let txHash = await getHashOfDistributeData(this.token, owner, initialAmountToDistribute, nonce);
+            let signature0 = web3.eth.sign(accounts[5], txHash);
+            let signature1 = web3.eth.sign(accounts[6], txHash);
+            let distributionTask = this.token.Distribute(
+                owner,
+                initialAmountToDistribute,
+                nonce,
+                accounts[5],
+                signature0,
+                accounts[6],
+                signature1,
+                { from: transactionAddress });
+            let distributionEvent = await inTransaction(distributionTask, 'Distributed');
             distributionEvent.args._to.should.eq(owner);
             distributionEvent.args._amount.should.be.bignumber.equal(initialAmountToDistribute);
             await assertInCirculation(this.token, initialAmountToDistribute);
@@ -49,129 +56,127 @@ contract('CacaoDistribution', async (accounts) => {
         });
     });
 
-    describe('startDistribution', function () {
-        describe('when there are enough cacaos in limbo', function () {
-            beforeEach(async function () {
-                await createCoin(this.token, creationAddresses, creationAmount);
-                await assertInLimbo(this.token, creationAmount);
+    describe('Distribute', function () {
+        describe('when the signing addresses are distribution addresses', async function () {
+            beforeEach('sign transactions', async function () {
+                this.nonce = getNonce();
+                this.txHash = await getHashOfDistributeData(this.token, owner, initialAmountToDistribute, this.nonce);
+                this.signature0 = web3.eth.sign(distributionAddresses[0], this.txHash);
+                this.signature1 = web3.eth.sign(distributionAddresses[1], this.txHash);
             });
-            describe('when the sender address is a distribution address.', function () {
-                describe('when is a valid amount (greater equal than 0.001 CAO).', function () {
-                    it('starts distribution.', async function () {
-                        await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
-                        await assertInCirculation(this.token, 0);
-                        await assertInLimbo(this.token, creationAmount);
-                    });
-                });
-                describe('when is an invalid amount (less than 0.001 CAO).', function () {
-                    let invalidCreationAmount = caoToWei(.0001);
-                    it('fails.', async function () {
-                        await assertRevert(this.token.startDistribution(owner, invalidCreationAmount, { from: distributionAddresses[0] }));
-                        await assertInCirculation(this.token, 0);
-                        await assertInLimbo(this.token, creationAmount);
-                    });
-                });
-                describe('when there is an ongoing distribution for that address.', function () {
-                    it('fails.', async function () {
-                        await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
-                        await assertRevert(this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] }));
-                        await assertInCirculation(this.token, 0);
-                        await assertInLimbo(this.token, creationAmount);
-                    });
-                });
-            });
-            describe('when the sender address is not a distribution address.', function () {
-                let invalidAddress = accounts[1]; // Creator Address instead
-                it('fails.', async function () {
-                    await assertRevert(this.token.startDistribution(owner, initialAmountToDistribute, { from: invalidAddress }));
-                });
-            });
-        });
-
-        describe('when there are not enough cacaos in limbo', function () {
-            it('starts distribution.', async function () {
-                // It will fail until the majority of votes is achieved.
-                // Creation and distribution can happen asyncronously.
-                // Assumming there are enough cacaos in limbo at start distribution time does not warantee there will be enough
-                // when the majority is achieved and cacaos are distributed.
-                await assertTotalSupply(this.token, 0);
-                await assertInCirculation(this.token, 0);
-                await assertInLimbo(this.token, 0);
-                await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
-                await assertInCirculation(this.token, 0);
-                await assertInLimbo(this.token, 0);
-            });
-        });
-    });
-
-    describe('confirmDistribution', function () {
-        describe('when there are enough cacaos in limbo', function () {
-            beforeEach(async function () {
-                await createCoin(this.token, creationAddresses, creationAmount);
-                await assertInLimbo(this.token, creationAmount);
-            });
-            describe('when the sender address is a distribution address', function () {
-                let senderAddress = distributionAddresses[0];
-                describe('when there is an open distribution process', function () {
+            describe('when valid signature', function () {
+                describe('when there are enough cacaos in limbo', function () {
                     beforeEach(async function () {
-                        await this.token.startDistribution(owner, initialAmountToDistribute, { from: senderAddress });
+                        await createCoin(this.token, creationAddresses, creationAmount, transactionAddress);
+                        await assertInLimbo(this.token, creationAmount);
                     });
-                    describe('when majority has not being achieved', function () {
-                        it('succeeds and no event is emmited', async function () {
-                            let confirmDistributionTask = this.token.confirmDistribution(owner, false, { from: distributionAddresses[1] });
-                            await notInTransaction(confirmDistributionTask, 'Distributed');
+                    it('succeeds', async function () {
+                        let distributionTask = this.token.Distribute(
+                            owner,
+                            initialAmountToDistribute,
+                            this.nonce,
+                            distributionAddresses[0],
+                            this.signature0,
+                            distributionAddresses[1],
+                            this.signature1,
+                            { from: transactionAddress });
+                        let distributionEvent = await inTransaction(distributionTask, 'Distributed');
+                        distributionEvent.args._to.should.eq(owner);
+                        distributionEvent.args._amount.should.be.bignumber.equal(initialAmountToDistribute);
+                        await assertInCirculation(this.token, initialAmountToDistribute);
+                        await assertTotalSupply(this.token, creationAmount);
+                        await assertBalanceOf(this.token, owner, initialAmountToDistribute);
+                        await assertInLimbo(this.token, pendingAmountInLimbo);
+                    });
+                    describe('invalid ammount', function () {
+                        it('reverts', async function () {
+                            let invalidAmount = caoToWei(.0001);
+                            let nonce = getNonce();
+                            let txHash = await getHashOfDistributeData(this.token, owner, invalidAmount, nonce);
+                            let signature0 = web3.eth.sign(distributionAddresses[0], txHash);
+                            let signature1 = web3.eth.sign(distributionAddresses[1], txHash);
+                            await assertRevert(this.token.Distribute(
+                                owner,
+                                invalidAmount,
+                                nonce,
+                                distributionAddresses[0],
+                                signature0,
+                                distributionAddresses[1],
+                                signature1,
+                                { from: transactionAddress }));
                         });
                     });
-                    describe('when majority has being achieved in favor', function () {
-                        it('coin is distributed and event is emmited', async function () {
-                            let confirmDistributionTask = this.token.confirmDistribution(owner, true, { from: distributionAddresses[1] });
-                            let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
-                            distributionEvent.args._to.should.eq(owner);
-                            distributionEvent.args._amount.should.be.bignumber.equal(initialAmountToDistribute);
-                            await assertInCirculation(this.token, initialAmountToDistribute);
-                            await assertTotalSupply(this.token, creationAmount);
-                            await assertBalanceOf(this.token, owner, initialAmountToDistribute);
-                            await assertInLimbo(this.token, pendingAmountInLimbo);
-                        });
-                    });
-                    describe('when majority has being achieved against', function () {
-                        it('coin is not distributed and no event is emmited', async function () {
-                            await this.token.confirmDistribution(owner, false, { from: distributionAddresses[1] });
-                            let confirmDistributionTask = this.token.confirmDistribution(owner, false, { from: distributionAddresses[2] });
-                            await notInTransaction(confirmDistributionTask, 'Distributed');
-                            await assertInCirculation(this.token, 0);
-                            await assertTotalSupply(this.token, creationAmount);
-                            await assertBalanceOf(this.token, owner, 0);
-                            await assertInLimbo(this.token, creationAmount);
-                        });
-                    });
-                    describe('when the sender address already voted', function () {
-                        it('fails.', async function () {
-                            await assertRevert(this.token.confirmDistribution(owner, false, { from: senderAddress }));
+                    describe('when repeated nonce', function () {
+                        it('reverts', async function () {
+                            await this.token.Distribute(
+                                owner,
+                                initialAmountToDistribute,
+                                this.nonce,
+                                distributionAddresses[0],
+                                this.signature0,
+                                distributionAddresses[1],
+                                this.signature1,
+                                { from: transactionAddress });
+                            await assertRevert(this.token.Distribute(
+                                owner,
+                                initialAmountToDistribute,
+                                this.nonce,
+                                distributionAddresses[0],
+                                this.signature0,
+                                distributionAddresses[1],
+                                this.signature1,
+                                { from: transactionAddress }));
                         });
                     });
                 });
-                describe('when there is not an open distribution process', function () {
-                    it('fails.', async function () {
-                        await assertRevert(this.token.confirmDistribution(owner, true, { from: senderAddress }));
+                describe('when there are not enough cacaos in limbo', function () {
+                    it('reverts', async function () {
+                        await assertRevert(this.token.Distribute(
+                            owner,
+                            initialAmountToDistribute,
+                            this.nonce,
+                            distributionAddresses[0],
+                            this.signature0,
+                            distributionAddresses[1],
+                            this.signature1,
+                            { from: transactionAddress }));
                     });
                 });
-
             });
-            describe('when the sender address is not a distribution address', function () {
-                let invalidAddress = accounts[1]; // Creation Address instead
-                it('fails.', async function () {
-                    await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
-                    await assertRevert(this.token.confirmDistribution(owner, false, { from: invalidAddress }));
+            describe('when invalid signature', function () {
+                beforeEach(async function () {
+                    await createCoin(this.token, creationAddresses, creationAmount, transactionAddress);
+                    await assertInLimbo(this.token, creationAmount);
+                });
+                it('reverts', async function () {
+                    await assertRevert(this.token.Distribute(
+                        owner,
+                        initialAmountToDistribute,
+                        this.nonce,
+                        distributionAddresses[0],
+                        this.signature0,
+                        distributionAddresses[1],
+                        "invalid-signature",
+                        { from: transactionAddress }));
                 });
             });
         });
-        describe('when there are not enough cacaos in limbo', function () {
-            describe('when majority has being achieved in favor', function () {
-                it('coin is distributed and event is emmited', async function () {
-                    await this.token.startDistribution(owner, initialAmountToDistribute, { from: distributionAddresses[0] });
-                    await assertRevert(this.token.confirmDistribution(owner, true, { from: distributionAddresses[1] }));
-                });
+        describe('when the signing addresses are not distribution addresses', async function () {
+            it('reverts', async function () {
+                await createCoin(this.token, creationAddresses, creationAmount, transactionAddress);
+                let nonce = getNonce();
+                let txHash = await getHashOfDistributeData(this.token, owner, creationAmount, nonce);
+                let signature0 = web3.eth.sign(creationAddresses[0], txHash);
+                let signature1 = web3.eth.sign(creationAddresses[1], txHash);
+                await assertRevert(this.token.Distribute(
+                    owner,
+                    creationAmount,
+                    nonce,
+                    creationAddresses[0],
+                    signature0,
+                    creationAddresses[1],
+                    signature1,
+                    { from: transactionAddress }));
             });
         });
     });

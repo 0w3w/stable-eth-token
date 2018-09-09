@@ -75,7 +75,7 @@ contract('CacaoCreation', async (accounts) => {
                 this.signature2 = web3.eth.sign(creationAddress2, this.txHash);
             });
             describe('when valid signature', function () {
-                it('succeds', async function () {
+                it('succeeds', async function () {
                     let creationTask = this.token.create(creationAmount,
                         this.nonce,
                         creationAddress0,
@@ -91,7 +91,7 @@ contract('CacaoCreation', async (accounts) => {
                     await assertTotalSupply(this.token, creationAmount);
                 });
                 describe('when repeated nonce', function () {
-                    it('succeds', async function () {
+                    it('succeeds', async function () {
                         await this.token.create(creationAmount,
                             this.nonce,
                             creationAddress0,
@@ -110,9 +110,27 @@ contract('CacaoCreation', async (accounts) => {
                             this.signature2, { from: unrelatedAddress }));
                     });
                 });
+                describe('invalid ammount', function () {
+                    it('reverts', async function () {
+                        let invalidAmount = caoToWei(.0001);
+                        let nonce = getNonce();
+                        let txHash = await getHashOfCreateData(this.token, invalidAmount, nonce);
+                        let signature0 = web3.eth.sign(creationAddress0, txHash);
+                        let signature1 = web3.eth.sign(creationAddress1, txHash);
+                        let signature2 = web3.eth.sign(creationAddress2, txHash);
+                        await assertRevert(this.token.create(invalidAmount,
+                            nonce,
+                            creationAddress0,
+                            signature0,
+                            creationAddress1,
+                            signature1,
+                            creationAddress2,
+                            signature2, { from: unrelatedAddress }));
+                    });
+                });
             });
             describe('when invalid signature', function () {
-                it('succeds', async function () {
+                it('succeeds', async function () {
                     await assertRevert(this.token.create(creationAmount,
                         this.nonce,
                         creationAddress0,
