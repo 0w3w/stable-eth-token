@@ -1,5 +1,4 @@
 # Stable Ethereum Token
-
 Stable token proposed implementation.
 
 ### Prerequisites
