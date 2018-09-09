@@ -28,6 +28,7 @@ contract CacaoDistribution is IVerifySignature {
         require(canDistribute(_address2), "Not a distribution key.");
         require(_address1 != _address2, "Distribution addresses must be different");
         bytes32 txHash = hashDistributeData(_to, _amount, _nonce);
+        verifyNonce(_nonce);
         verify(txHash, _signature1, _address1);
         verify(txHash, _signature2, _address2);
         // Distribute!

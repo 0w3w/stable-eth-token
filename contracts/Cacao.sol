@@ -180,6 +180,7 @@ contract Cacao is IVerifySignature, StandardToken, CacaoKeyRing, CacaoCreation, 
         require(_address != address(0));
         require(_value >= 0);
         bytes32 txHash = hashDelegatedTransfer(_signer, _address, _value, _nonce);
+        verifyNonce(_nonce);
         verify(txHash, _signature, _signer);
         _delegatedTransferFee = _value;
         _delegatedTransferAddress = _address;
@@ -203,6 +204,7 @@ contract Cacao is IVerifySignature, StandardToken, CacaoKeyRing, CacaoCreation, 
         registerTransaction(_from, getBlockNumber());
         _value.requireValidAmount();
         bytes32 txHash = hashDelegatedTransfer(_from, _to, _value, _nonce);
+        verifyNonce(_nonce);
         verify(txHash, _signature, _from);
         // Transfer the CAO to the other account
         transferBetweenAccounts(_from, _to, _value);
@@ -234,11 +236,14 @@ contract Cacao is IVerifySignature, StandardToken, CacaoKeyRing, CacaoCreation, 
     */
 
     // Stores used hashes
-    mapping (bytes32 => bool) private _usedHashes;
+    mapping (bytes32 => bool) private _usedNonces;
+
+    function verifyNonce(bytes32 _nonce) internal {
+        require(!_usedNonces[_nonce], "_nonce already used");
+        _usedNonces[_nonce] = true;
+    }
 
     function verify(bytes32 _hash, bytes _signature, address _expectedSigner) internal {
-        require(!_usedHashes[_hash], "_hash already used");
-        _usedHashes[_hash] = true;
         address recovered = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(_hash), _signature);
         require(recovered == _expectedSigner, "invalid signature");
     }

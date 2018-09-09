@@ -1,6 +1,6 @@
 import { assertInLimbo, assertTotalSupply } from './helpers/assertAmounts.js';
-import { inTransaction, notInTransaction } from './helpers/expectEvent.js';
-import { caoToWei } from './helpers/helperMethods.js';
+import { inTransaction } from './helpers/expectEvent.js';
+import { caoToWei, getNonce, getHashOfCreateData } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -21,135 +21,124 @@ async function assertIsNotCreating(contractInstance) {
 
 contract('CacaoCreation', async (accounts) => {
     let creationAmount = caoToWei(10);
-    let creationAddress = accounts[0];
-    let creationAddress2 = accounts[1];
-    let creationAddress3 = accounts[2];
-    let creationAddress4 = accounts[3];
+    let creationAddress0 = accounts[0];
+    let creationAddress1 = accounts[1];
+    let creationAddress2 = accounts[2];
+    let creationAddress3 = accounts[3];
+    let creationAddress4 = accounts[4];
     let delegatedTransferFee = caoToWei(1);
     const delegatedTransferAddress = accounts[8];
+    const unrelatedAddress = accounts[9];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
-            accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
+            creationAddress1, creationAddress2, creationAddress3, creationAddress4, // Creation Addresses (Including msg.sender as #1)
             accounts[5], accounts[6], accounts[7], // Distribution Addresses
             delegatedTransferAddress, delegatedTransferFee);
     });
 
     describe('creation lifecycle', function () {
         it("succeeds", async function () {
-            await assertIsNotCreating(this.token);
+            // Pre Conditions
             await assertInLimbo(this.token, 0);
             await assertTotalSupply(this.token, 0);
-
-            // Start Creation
-            await this.token.startCreation(creationAmount, { from: accounts[0] });
-            await assertIsCreating(this.token);
-            await assertTotalSupply(this.token, 0);
-
-            // ConfirmCreation
-            await this.token.confirmCreation(true, { from: accounts[1] });
-            let confirmCreationTask = this.token.confirmCreation(true, { from: accounts[2] });
-            let creationEvent = await inTransaction(confirmCreationTask, 'Created');
+            // Sign messages
+            let nonce = getNonce();
+            let txHash = await getHashOfCreateData(this.token, creationAmount, nonce);
+            const signature0 = web3.eth.sign(creationAddress0, txHash);
+            const signature1 = web3.eth.sign(creationAddress1, txHash);
+            const signature2 = web3.eth.sign(creationAddress2, txHash);
+            // Create Coin
+            let creationTask = this.token.create(creationAmount,
+                nonce,
+                creationAddress0,
+                signature0,
+                creationAddress1,
+                signature1,
+                creationAddress2,
+                signature2, { from: unrelatedAddress });
+            // Post Conditions
+            let creationEvent = await inTransaction(creationTask, 'Created');
             creationEvent.args._amount.should.be.bignumber.equal(creationAmount);
-
-            await assertIsNotCreating(this.token);
             await assertInLimbo(this.token, creationAmount);
             await assertTotalSupply(this.token, creationAmount);
         });
     });
 
-    describe('startCreation', function () {
-        describe('when the sender address is a creation address.', function () {
-            describe('when is a valid amount (greater equal than 0.001 CAO).', function () {
-                it('starts creation.', async function () {
-                    await assertTotalSupply(this.token, 0);
-                    await assertIsNotCreating(this.token);
-                    await this.token.startCreation(creationAmount, { from: creationAddress });
-                    await assertIsCreating(this.token);
-                    await assertTotalSupply(this.token, 0);
-                });
+    describe('create', function () {
+        describe('when the signing addresses are creation addresses', async function () {
+            beforeEach('sign transactions', async function () {
+                this.nonce = getNonce();
+                this.txHash = await getHashOfCreateData(this.token, creationAmount, this.nonce);
+                this.signature0 = web3.eth.sign(creationAddress0, this.txHash);
+                this.signature1 = web3.eth.sign(creationAddress1, this.txHash);
+                this.signature2 = web3.eth.sign(creationAddress2, this.txHash);
             });
-            describe('when is an invalid amount (less than 0.001 CAO).', function () {
-                let invalidCreationAmount = caoToWei(.0001);
-                it('fails.', async function () {
-                    await assertTotalSupply(this.token, 0);
-                    await assertIsNotCreating(this.token);
-                    await assertRevert(this.token.startCreation(invalidCreationAmount, { from: creationAddress }));
+            describe('when valid signature', function () {
+                it('succeds', async function () {
+                    let creationTask = this.token.create(creationAmount,
+                        this.nonce,
+                        creationAddress0,
+                        this.signature0,
+                        creationAddress1,
+                        this.signature1,
+                        creationAddress2,
+                        this.signature2, { from: unrelatedAddress });
+                    // Post Conditions
+                    let creationEvent = await inTransaction(creationTask, 'Created');
+                    creationEvent.args._amount.should.be.bignumber.equal(creationAmount);
+                    await assertInLimbo(this.token, creationAmount);
+                    await assertTotalSupply(this.token, creationAmount);
                 });
-            });
-            describe('when theres an ongoing creation.', function () {
-                it('fails.', async function () {
-                    await assertTotalSupply(this.token, 0);
-                    await assertIsNotCreating(this.token);
-                    await this.token.startCreation(creationAmount, { from: creationAddress });
-                    await assertIsCreating(this.token);
-                    await assertTotalSupply(this.token, 0);
-                    await assertRevert(this.token.startCreation(creationAmount, { from: creationAddress }));
-                    await assertIsCreating(this.token);
-                    await assertTotalSupply(this.token, 0);
-                });
-            });
-        });
-        describe('when the sender address is not a creation address.', function () {
-            let invalidCreationAddress = accounts[5]; // Distribution Address instead
-            it('fails.', async function () {
-                await assertRevert(this.token.startCreation(creationAmount, { from: invalidCreationAddress }));
-            });
-        });
-    });
-
-    describe('confirmCreation', function () {
-        describe('when the sender address is a creation address', function () {
-            describe('when there is an open creation process', function () {
-                beforeEach(async function () {
-                    await this.token.startCreation(creationAmount, { from: creationAddress });
-                });
-                describe('majority has not being achieved.', function () {
-                    it('succeeds and no event is emmited.', async function () {
-                        let confirmCreationTask = this.token.confirmCreation(true, { from: creationAddress2 });
-                        await notInTransaction(confirmCreationTask, 'Created');
-                    });
-                });
-                describe('majority has being achieved in favor.', function () {
-                    it('coin is created and event is emmited.', async function () {
-                        await this.token.confirmCreation(true, { from: creationAddress2 });
-                        let confirmCreationTask = this.token.confirmCreation(true, { from: creationAddress3 });
-                        let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-                        creationEvent.args._amount.should.be.bignumber.equal(creationAmount);
-                        await assertIsNotCreating(this.token);
-                        await assertInLimbo(this.token, creationAmount);
-                        await assertTotalSupply(this.token, creationAmount);
-                    });
-                });
-                describe('majority has being achieved against.', function () {
-                    it('coin is not created and no event is emmited.', async function () {
-                        await this.token.confirmCreation(false, { from: creationAddress2 });
-                        await this.token.confirmCreation(false, { from: creationAddress3 });
-                        let confirmCreationTask = this.token.confirmCreation(false, { from: creationAddress4 });
-                        await notInTransaction(confirmCreationTask, 'Created');
-                        await assertIsNotCreating(this.token);
-                        await assertInLimbo(this.token, 0);
-                        await assertTotalSupply(this.token, 0);
+                describe('when repeated nonce', function () {
+                    it('succeds', async function () {
+                        await this.token.create(creationAmount,
+                            this.nonce,
+                            creationAddress0,
+                            this.signature0,
+                            creationAddress1,
+                            this.signature1,
+                            creationAddress2,
+                            this.signature2, { from: unrelatedAddress });
+                        await assertRevert(this.token.create(creationAmount,
+                            this.nonce,
+                            creationAddress0,
+                            this.signature0,
+                            creationAddress1,
+                            this.signature1,
+                            creationAddress2,
+                            this.signature2, { from: unrelatedAddress }));
                     });
                 });
             });
-            describe('when there is no open creation process', function () {
-                it('fails.', async function () {
-                    await assertRevert(this.token.confirmCreation(true, { from: creationAddress }));
+            describe('when invalid signature', function () {
+                it('succeds', async function () {
+                    await assertRevert(this.token.create(creationAmount,
+                        this.nonce,
+                        creationAddress0,
+                        this.signature0,
+                        creationAddress1,
+                        this.signature1,
+                        creationAddress2,
+                        "invalidSignature", { from: unrelatedAddress }));
                 });
-            });            
-        });
-        describe('when the sender address is not a creation address.', function () {
-            let invalidCreationAddress = accounts[5]; // Distribution Address instead
-            it('fails.', async function () {
-                await this.token.startCreation(creationAmount, { from: creationAddress });
-                await assertRevert(this.token.confirmCreation(true, { from: invalidCreationAddress }));
             });
         });
-        describe('when the sender address already voted.', function () {
+        describe('when the signing addresses are not creation addresses', function () {
             it('fails.', async function () {
-                await this.token.startCreation(creationAmount, { from: creationAddress });
-                await assertRevert(this.token.confirmCreation(true, { from: creationAddress }));
+                let nonce = getNonce();
+                let txHash = await getHashOfCreateData(this.token, creationAmount, nonce);
+                const signature0 = web3.eth.sign(accounts[5], txHash);
+                const signature1 = web3.eth.sign(accounts[6], txHash);
+                const signature2 = web3.eth.sign(accounts[7], txHash);
+                await assertRevert(this.token.create(creationAmount,
+                    nonce,
+                    accounts[5],
+                    signature0,
+                    accounts[6],
+                    signature1,
+                    accounts[7],
+                    signature2, { from: unrelatedAddress }));
             });
         });
     });

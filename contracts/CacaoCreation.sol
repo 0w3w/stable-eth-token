@@ -36,6 +36,7 @@ contract CacaoCreation is IVerifySignature {
         _amount.requireValidAmount();
         require(_address1 != _address2, "Creator addresses must be different");
         require(_address2 != _address3, "Creator addresses must be different");
+        verifyNonce(_nonce);
         assertCreationAddress(_amount, _nonce, _address1, _signature1);
         assertCreationAddress(_amount, _nonce, _address2, _signature2);
         assertCreationAddress(_amount, _nonce, _address3, _signature3);

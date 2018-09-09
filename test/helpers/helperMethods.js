@@ -1,7 +1,20 @@
-const createCoin = async (contractInstance, creationAddresses, amountInWeis) => {
-    await contractInstance.startCreation(amountInWeis, { from: creationAddresses[0] });
-    await contractInstance.confirmCreation(true, { from: creationAddresses[1] });
-    await contractInstance.confirmCreation(true, { from: creationAddresses[2] });
+const createCoin = async (contractInstance, creationAddresses, amountInWeis, transactionAddress) => {
+    //Sign messages
+    let nonce = getNonce();
+    let txHash = await getHashOfCreateData(contractInstance, amountInWeis, nonce);
+    const signature0 = web3.eth.sign(creationAddresses[0], txHash);
+    const signature1 = web3.eth.sign(creationAddresses[1], txHash);
+    const signature2 = web3.eth.sign(creationAddresses[2], txHash);
+
+    // Create Coin
+    await contractInstance.create(amountInWeis,
+        nonce,
+        creationAddresses[0],
+        signature0,
+        creationAddresses[1],
+        signature1,
+        creationAddresses[2],
+        signature2, { from: transactionAddress });
 }
 
 const distributeCoin = async (contractInstance, distributionAddresses, amountInWeis, distributeTo) => {
@@ -39,7 +52,7 @@ const signMessage = (address, message) => {
     };
 }
 
-const getHashOfTransaction = async (contractInstance, from, to, value, nonce) => {
+const getHashOfHashDelegatedTransfer = async (contractInstance, from, to, value, nonce) => {
     const txHash = await contractInstance.hashDelegatedTransfer.call(
         from,
         to,
@@ -48,11 +61,25 @@ const getHashOfTransaction = async (contractInstance, from, to, value, nonce) =>
     return txHash;
 }
 
+const getHashOfCreateData = async (contractInstance, ammount, nonce) => {
+    const txHash = await contractInstance.hashCreateData.call(
+        ammount,
+        nonce);
+    return txHash;
+}
+
+const getNonce = () => {
+    return Math.random().toString(36).substring(7);;
+}
+
+
 module.exports = {
     caoToWei,
     createAndDistributeCoin,
     createCoin,
     distributeCoin,
     signMessage,
-    getHashOfTransaction
+    getHashOfHashDelegatedTransfer,
+    getNonce,
+    getHashOfCreateData
 };
