@@ -124,6 +124,9 @@ contract CacaoKeyRing is IVerifySignature {
         AddressMetadata storage _oldMetadata = _keyring[_oldAddress];
         require(_oldMetadata.isValid, "The old address is not a valid address to replace.");
         require(_oldMetadata.isCreation, "The old address is not a valid creation address.");
+        require(_oldAddress != _address1, "Signing addresses must be different than the replacing one");
+        require(_oldAddress != _address2, "Signing addresses must be different than the replacing one");
+        require(_oldAddress != _address3, "Signing addresses must be different than the replacing one");
         // Verify signatures
         require(_address1 != _address2, "Signing addresses must be different");
         require(_address2 != _address3, "Signing addresses must be different");
@@ -161,6 +164,8 @@ contract CacaoKeyRing is IVerifySignature {
         AddressMetadata storage _oldMetadata = _keyring[_oldAddress];
         require(_oldMetadata.isValid, "The old address is not a valid address to replace.");
         require(_oldMetadata.isDistribution, "The old address is not a valid distribution address.");
+        require(_oldAddress != _address1, "Signing addresses must be different than the replacing one");
+        require(_oldAddress != _address2, "Signing addresses must be different than the replacing one");
         // Verify signatures
         require(_address1 != _address2, "Signing addresses must be different");
         require(isDistributor(_address1), "Invalid distributor _address1 address");

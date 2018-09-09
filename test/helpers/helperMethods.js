@@ -43,27 +43,6 @@ const caoToWei = (amount) => {
     return amount * 1000;
 }
 
-const signMessage = (address, message) => {
-    const messageHex = '0x' + Buffer.from(message).toString('hex');
-    const signature = web3.eth.sign(address, messageHex);
-    const r = signature.slice(0, 66)
-    const s = '0x' + signature.slice(66, 130)
-    const v = '0x' + signature.slice(130, 132)
-
-    // eth_sign calculated the signature over keccak256("\x19Ethereum Signed Message:\n" + len(givenMessage) + givenMessage)))
-    // this gives context to a signature and prevents signing of transactions.
-    const messageHash = web3.sha3('\x19Ethereum Signed Message:\n' + message.length + message);
-    return {
-        address: address,
-        messageHex: messageHex,
-        signature: signature,
-        hash: (new String(messageHash)).valueOf(),
-        r: (new String(r)).valueOf(),
-        s: (new String(s)).valueOf(),
-        v: (web3.toDecimal(v) + 27)
-    };
-}
-
 const getHashOfHashDelegatedTransfer = async (contractInstance, from, to, value, nonce) => {
     const txHash = await contractInstance.hashDelegatedTransfer.call(
         from,
@@ -88,6 +67,14 @@ const getHashOfDistributeData = async (contractInstance, to, ammount, nonce) => 
     return txHash;
 }
 
+const getHashOfReplaceAddress = async (contractInstance, oldAddress, newAddress, nonce) => {
+    const txHash = await contractInstance.hashReplaceData.call(
+        oldAddress,
+        newAddress,
+        nonce);
+    return txHash;
+}
+
 const getNonce = () => {
     return Math.random().toString(36).substring(7);;
 }
@@ -98,9 +85,9 @@ module.exports = {
     createAndDistributeCoin,
     createCoin,
     distributeCoin,
-    signMessage,
     getHashOfCreateData,
     getHashOfDistributeData,
     getHashOfHashDelegatedTransfer,
+    getHashOfReplaceAddress,
     getNonce
 };
