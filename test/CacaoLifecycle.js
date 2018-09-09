@@ -1,6 +1,6 @@
 import { assertBalanceOf, assertInLimbo, assertInPurgatory, assertInCirculation, assertTotalSupply } from './helpers/assertAmounts.js';
 import { inTransaction } from './helpers/expectEvent.js';
-import { caoToWei } from './helpers/helperMethods.js';
+import { caoToWei, getNonce, getHashOfCreateData, getHashOfDistributeData } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -10,99 +10,99 @@ require('chai')
     .should();
 
 contract('Cacao', async (accounts) => {
-    let contractInstance;
     let initialamountInWei = caoToWei(1000)
     const delegatedTransferAddress = accounts[8];
     const delegatedTransferFee = caoToWei(1);
+    const transactionAddress = accounts[12];
 
     beforeEach('setup contract for each test', async function () {
-        contractInstance = await Cacao.new(
+        this.token = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
             accounts[5], accounts[6], accounts[7], // Distribution Addresses
             delegatedTransferAddress, delegatedTransferFee);
     });
 
-    it("Lifecycle", async () => {
+    describe('Lifecycle', function () {
+        it("Succeed", async function () {
+            // Create
+            await assertTotalSupply(this.token, 0);
+            await assertInLimbo(this.token, 0);
+            let nonce = getNonce();
+            let txHash = await getHashOfCreateData(this.token, initialamountInWei, nonce);
+            let signature0 = web3.eth.sign(accounts[0], txHash);
+            let signature1 = web3.eth.sign(accounts[1], txHash);
+            let signature2 = web3.eth.sign(accounts[2], txHash);
+            let creationTask = this.token.create(initialamountInWei,
+                nonce,
+                accounts[0],
+                signature0,
+                accounts[1],
+                signature1,
+                accounts[2],
+                signature2, { from: transactionAddress });
+            let creationEvent = await inTransaction(creationTask, 'Created');
+            creationEvent.args._amount.should.be.bignumber.equal(initialamountInWei);
+            await assertInLimbo(this.token, initialamountInWei);
+            await assertTotalSupply(this.token, initialamountInWei);
 
-        /*
-            Create
-        */
+            // Distribute
+            let initialOwner = accounts[9];
+            let pendingAmountInLimboInWei = caoToWei(900);
+            await assertInCirculation(this.token, 0);
+            let initialDistributedamountInWei = caoToWei(100);
+            nonce = getNonce();
+            txHash = await getHashOfDistributeData(this.token, initialOwner, initialDistributedamountInWei, nonce);
+            signature0 = web3.eth.sign(accounts[5], txHash);
+            signature1 = web3.eth.sign(accounts[6], txHash);
+            let distributionTask = this.token.Distribute(
+                initialOwner,
+                initialDistributedamountInWei,
+                nonce,
+                accounts[5],
+                signature0,
+                accounts[6],
+                signature1,
+                { from: transactionAddress });
+            let distributionEvent = await inTransaction(distributionTask, 'Distributed');
+            distributionEvent.args._to.should.eq(initialOwner);
+            distributionEvent.args._amount.should.be.bignumber.equal(initialDistributedamountInWei);
+            await assertInCirculation(this.token, initialDistributedamountInWei);
+            await assertTotalSupply(this.token, initialamountInWei);
+            await assertBalanceOf(this.token, initialOwner, initialDistributedamountInWei);
+            await assertInLimbo(this.token, pendingAmountInLimboInWei);
 
-        // Start Creation
-        await assertTotalSupply(contractInstance, 0);
-        let isCreating = await contractInstance.isCreating();
-        await assert(!isCreating, "Contract should not be creating");
-        await contractInstance.startCreation(initialamountInWei, { from: accounts[0] });
-        isCreating = await contractInstance.isCreating();
-        await assert(isCreating, "Contract should be creating");
-        await assertTotalSupply(contractInstance, 0);
-        // ConfirmCreation
-        await contractInstance.confirmCreation(true, { from: accounts[1] });
-        let confirmCreationTask = contractInstance.confirmCreation(true, { from: accounts[2] });
-        let creationEvent = await inTransaction(confirmCreationTask, 'Created');
-        creationEvent.args._amount.should.be.bignumber.equal(initialamountInWei);
-        // Verify Cacaos in Limbo
-        isCreating = await contractInstance.isCreating();
-        assert.isFalse(isCreating, "Contract should not be creating");
-        await assertInLimbo(contractInstance, initialamountInWei);
-        await assertTotalSupply(contractInstance, initialamountInWei);
+            // Use (Simple Transfer)
+            let to = accounts[10];
+            let transferAmount = caoToWei(10);
+            await assertBalanceOf(this.token, to, 0);
+            await this.token.transfer(to, transferAmount, { from: initialOwner });
+            await assertInCirculation(this.token, initialDistributedamountInWei);
+            await assertTotalSupply(this.token, initialamountInWei);
+            await assertBalanceOf(this.token, initialOwner, caoToWei(90));
+            await assertBalanceOf(this.token, to, transferAmount);
 
-        /*
-            Distribute
-        */
-
-        // startDistribution
-        let initialOwner = accounts[9];
-        let pendingAmountInLimboInWei = caoToWei(900);
-        await assertInCirculation(contractInstance, 0);
-        let initialDistributedamountInWei = caoToWei(100);
-        await contractInstance.startDistribution(initialOwner, initialDistributedamountInWei, { from: accounts[5] });
-        await assertTotalSupply(contractInstance, initialamountInWei);
-        // confirmDistribution
-        let confirmDistributionTask = contractInstance.confirmDistribution(initialOwner, true, { from: accounts[6] });
-        let distributionEvent = await inTransaction(confirmDistributionTask, 'Distributed');
-        distributionEvent.args._to.should.eq(initialOwner);
-        distributionEvent.args._amount.should.be.bignumber.equal(initialDistributedamountInWei);
-        await assertInCirculation(contractInstance, initialDistributedamountInWei);
-        await assertTotalSupply(contractInstance, initialamountInWei);
-        await assertBalanceOf(contractInstance, initialOwner, initialDistributedamountInWei);
-        await assertInLimbo(contractInstance, pendingAmountInLimboInWei);
-
-        /*
-            Use (Simple Transfer)
-        */
-        let to = accounts[10];
-        let transferAmount = caoToWei(10);
-        await assertBalanceOf(contractInstance, to, 0);
-        await contractInstance.transfer(to, transferAmount, { from: initialOwner });
-        await assertInCirculation(contractInstance, initialDistributedamountInWei);
-        await assertTotalSupply(contractInstance, initialamountInWei);
-        await assertBalanceOf(contractInstance, initialOwner, caoToWei(90));
-        await assertBalanceOf(contractInstance, to, transferAmount);
-
-        /*
-            Destruct
-        */
-        let destructionReference = "QWERY132456";
-        let amountToBurn = caoToWei(10);
-        await assertInPurgatory(contractInstance, 0);
-        // Without valid reference
-        await assertRevert(contractInstance.burn(amountToBurn, destructionReference, { from: initialOwner }));
-        await assertInPurgatory(contractInstance, 0);
-        // With valid reference
-        await contractInstance.generateDestructionReference(destructionReference, { from: accounts[5] });
-        await contractInstance.burn(amountToBurn, destructionReference, { from: initialOwner });
-        await assertBalanceOf(contractInstance, initialOwner, caoToWei(80));
-        await assertInPurgatory(contractInstance, amountToBurn);
-        await assertInCirculation(contractInstance, caoToWei(90));
-        await assertInLimbo(contractInstance, pendingAmountInLimboInWei);
-        await assertTotalSupply(contractInstance, initialamountInWei);
-        // Obliterate
-        let amountToObliterate = caoToWei(6);
-        await contractInstance.obliterate(amountToObliterate, { from: accounts[5] });
-        await assertInPurgatory(contractInstance, caoToWei(4));
-        await assertInCirculation(contractInstance, caoToWei(90));
-        await assertInLimbo(contractInstance, pendingAmountInLimboInWei);
-        await assertTotalSupply(contractInstance, caoToWei(994));
+            // Destruct
+            let destructionReference = "QWERY132456";
+            let amountToBurn = caoToWei(10);
+            await assertInPurgatory(this.token, 0);
+            // Without valid reference
+            await assertRevert(this.token.burn(amountToBurn, destructionReference, { from: initialOwner }));
+            await assertInPurgatory(this.token, 0);
+            // With valid reference
+            await this.token.generateDestructionReference(destructionReference, { from: accounts[5] });
+            await this.token.burn(amountToBurn, destructionReference, { from: initialOwner });
+            await assertBalanceOf(this.token, initialOwner, caoToWei(80));
+            await assertInPurgatory(this.token, amountToBurn);
+            await assertInCirculation(this.token, caoToWei(90));
+            await assertInLimbo(this.token, pendingAmountInLimboInWei);
+            await assertTotalSupply(this.token, initialamountInWei);
+            // Obliterate
+            let amountToObliterate = caoToWei(6);
+            await this.token.obliterate(amountToObliterate, { from: accounts[5] });
+            await assertInPurgatory(this.token, caoToWei(4));
+            await assertInCirculation(this.token, caoToWei(90));
+            await assertInLimbo(this.token, pendingAmountInLimboInWei);
+            await assertTotalSupply(this.token, caoToWei(994));
+        });
     });
 });

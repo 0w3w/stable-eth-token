@@ -21,14 +21,15 @@ contract('CacaoFreeze', async (accounts) => {
     let owner = accounts[9];
     let spender = accounts[10];
     let to = accounts[11];
+    const transactionAddress = accounts[12];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
             accounts[1], accounts[2], accounts[3], accounts[4], // Creation Addresses (Including msg.sender as #1)
             accounts[5], accounts[6], accounts[7], // Distribution Addresses
             delegatedTransferAddress, delegatedTransferFee);
-        await createCoin(this.token, creationAddresses, creationAmount);
-        await distributeCoin(this.token, distributionAddresses, amountToDistribute, owner);
+        await createCoin(this.token, creationAddresses, creationAmount, transactionAddress);
+        await distributeCoin(this.token, distributionAddresses, transactionAddress, amountToDistribute, owner);
     });
 
     describe('freeze', function () {
@@ -87,35 +88,17 @@ contract('CacaoFreeze', async (accounts) => {
             });
             describe('CacaoCreation external and public methods', function () {
                 describe('reverts', function () {
-                    it("startCreation", async function () {
+                    it("create", async function () {
                         await this.token.freeze({ from: creationAddresses[1] });
-                        await assertRevert(this.token.startCreation(creationAmount, { from: creationAddresses[0] }));
-                    });
-                    it("confirmCreation", async function () {
-                        this.token.startCreation(creationAmount, { from: creationAddresses[0] });
-                        await this.token.freeze({ from: creationAddresses[1] });
-                        await assertRevert(this.token.confirmCreation(true, { from: creationAddresses[1] }));
-                    });
-                });
-                describe('success', function () {
-                    beforeEach(async function () {
-                        await this.token.freeze({ from: creationAddresses[1] });
-                    });
-                    it("isCreating", async function () {
-                        let isCreating = await this.token.isCreating();
+                        await assertRevert(createCoin(this.token, creationAddresses, creationAmount, transactionAddress));
                     });
                 });
             });
             describe('CacaoDistribution external and public methods', function () {
                 describe('reverts', function () {
-                    it("startDistribution", async function () {
+                    it("Distribute", async function () {
                         await this.token.freeze({ from: creationAddresses[1] });
-                        await assertRevert(this.token.startDistribution(owner, amountToDistribute, { from: distributionAddresses[0] }));
-                    });
-                    it("confirmDistribution", async function () {
-                        this.token.startDistribution(owner, amountToDistribute, { from: distributionAddresses[0] });
-                        await this.token.freeze({ from: creationAddresses[1] });
-                        await assertRevert(this.token.confirmDistribution(owner, true, { from: distributionAddresses[1] }));
+                        await assertRevert(distributeCoin(this.token, distributionAddresses, transactionAddress, amountToDistribute, owner));
                     });
                 });
             });

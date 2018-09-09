@@ -3,13 +3,13 @@ import { assertBalanceOf, assertInCirculation, assertTotalSupply } from './helpe
 import assertRevert from './helpers/assertRevert.js';
 const CacaoRescueMock = artifacts.require("test/CacaoRescueMock.sol");
 
-async function createContractWithBlockNumber(blockNumber, creationAddresses, distributionAddresses, delegatedTransferAddress, delegatedTransferFee, ammount, owner) {
+async function createContractWithBlockNumber(blockNumber, creationAddresses, distributionAddresses, transactionAddress, delegatedTransferAddress, delegatedTransferFee, ammount, owner) {
     let contractInstance = await CacaoRescueMock.new(
         creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4],
         distributionAddresses[0], distributionAddresses[1], distributionAddresses[2],
         delegatedTransferAddress, delegatedTransferFee,
         blockNumber);
-    await createAndDistributeCoin(contractInstance, creationAddresses, distributionAddresses, ammount, owner);
+    await createAndDistributeCoin(contractInstance, creationAddresses, distributionAddresses, transactionAddress, ammount, owner);
     return contractInstance;
 }
 
@@ -40,12 +40,14 @@ contract('CacaoRescue', async (accounts) => {
     const blockNumer4YearsAgo = 4380000;
     const blockNumer5YearsAgo = 2190000;
     const blockNumer5AndAHalfYearsAgo = 1095000;
+    const transactionAddress = accounts[11];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await createContractWithBlockNumber(
             blockNumber6Years,
             creationAddresses,
             distributionAddresses,
+            transactionAddress,
             delegatedTransferAddress,
             delegatedTransferFee,
             creationAmount,

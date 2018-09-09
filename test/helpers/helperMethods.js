@@ -5,7 +5,6 @@ const createCoin = async (contractInstance, creationAddresses, amountInWeis, tra
     const signature0 = web3.eth.sign(creationAddresses[0], txHash);
     const signature1 = web3.eth.sign(creationAddresses[1], txHash);
     const signature2 = web3.eth.sign(creationAddresses[2], txHash);
-
     // Create Coin
     await contractInstance.create(amountInWeis,
         nonce,
@@ -17,14 +16,27 @@ const createCoin = async (contractInstance, creationAddresses, amountInWeis, tra
         signature2, { from: transactionAddress });
 }
 
-const distributeCoin = async (contractInstance, distributionAddresses, amountInWeis, distributeTo) => {
-    await contractInstance.startDistribution(distributeTo, amountInWeis, { from: distributionAddresses[0] });
-    await contractInstance.confirmDistribution(distributeTo, true, { from: distributionAddresses[1] });
+const distributeCoin = async (contractInstance, distributionAddresses, transactionAddress, amountInWeis, distributeTo) => {
+    //Sign messages
+    let nonce = getNonce();
+    let txHash = await getHashOfDistributeData(contractInstance, distributeTo, amountInWeis, nonce);
+    const signature0 = web3.eth.sign(distributionAddresses[0], txHash);
+    const signature1 = web3.eth.sign(distributionAddresses[1], txHash);
+    // Distribute Coin
+    await contractInstance.Distribute(
+        distributeTo,
+        amountInWeis,
+        nonce,
+        distributionAddresses[0],
+        signature0,
+        distributionAddresses[1],
+        signature1,
+        { from: transactionAddress });
 }
 
-const createAndDistributeCoin = async (contractInstance, creationAddresses, distributionAddresses, amountInWeis, distributeTo) => {
-    await createCoin(contractInstance, creationAddresses, amountInWeis);
-    await distributeCoin(contractInstance, distributionAddresses, amountInWeis, distributeTo);
+const createAndDistributeCoin = async (contractInstance, creationAddresses, distributionAddresses, transactionAddress, amountInWeis, distributeTo) => {
+    await createCoin(contractInstance, creationAddresses, amountInWeis, transactionAddress);
+    await distributeCoin(contractInstance, distributionAddresses, transactionAddress, amountInWeis, distributeTo);
 }
 
 const caoToWei = (amount) => {
@@ -68,6 +80,14 @@ const getHashOfCreateData = async (contractInstance, ammount, nonce) => {
     return txHash;
 }
 
+const getHashOfDistributeData = async (contractInstance, to, ammount, nonce) => {
+    const txHash = await contractInstance.hashDistributeData.call(
+        to,
+        ammount,
+        nonce);
+    return txHash;
+}
+
 const getNonce = () => {
     return Math.random().toString(36).substring(7);;
 }
@@ -79,7 +99,8 @@ module.exports = {
     createCoin,
     distributeCoin,
     signMessage,
+    getHashOfCreateData,
+    getHashOfDistributeData,
     getHashOfHashDelegatedTransfer,
-    getNonce,
-    getHashOfCreateData
+    getNonce
 };

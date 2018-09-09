@@ -1,7 +1,6 @@
-
 import { assertBalanceOf } from './helpers/assertAmounts.js';
 import { listEvents } from './helpers/expectEvent.js';
-import { caoToWei, createAndDistributeCoin, getHashOfTransaction } from './helpers/helperMethods.js';
+import { caoToWei, createAndDistributeCoin, getHashOfHashDelegatedTransfer } from './helpers/helperMethods.js';
 import assertRevert from './helpers/assertRevert.js';
 const Cacao = artifacts.require("Cacao");
 
@@ -46,13 +45,13 @@ contract('Cacao', async (accounts) => {
     describe('DelegateTransfer', function () {
         describe('Valid Signature', function () {
             beforeEach('setup contract for each test', async function () {
-                await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, initialamountInWei, fromAccount);
+                await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, other, initialamountInWei, fromAccount);
             });
             it("Success", async function () {
                 // Get the hash of the message
                 let transferAmount = caoToWei(10);
                 let nonceStr = "randomizer";
-                let txHash = await getHashOfTransaction(this.token, fromAccount, toAccount, transferAmount, nonceStr);
+                let txHash = await getHashOfHashDelegatedTransfer(this.token, fromAccount, toAccount, transferAmount, nonceStr);
                 // Signs message using web3 (auto-applies prefix)
                 const signature = web3.eth.sign(fromAccount, txHash);
                 let delegatedTransferTask = this.token.delegatedTransfer(
@@ -74,7 +73,7 @@ contract('Cacao', async (accounts) => {
                 // Get the hash of the message
                 let transferAmount = caoToWei(10);
                 let nonceStr = "randomizer";
-                let txHash = await getHashOfTransaction(this.token, fromAccount, toAccount, transferAmount, nonceStr);
+                let txHash = await getHashOfHashDelegatedTransfer(this.token, fromAccount, toAccount, transferAmount, nonceStr);
                 // Signs message using web3 (auto-applies prefix)
                 const signature = web3.eth.sign(fromAccount, txHash);
                 let delegatedTransferTask = this.token.delegatedTransfer(

@@ -20,6 +20,7 @@ contract('CacaoDestruction', async (accounts) => {
     let amountToBurn = caoToWei(10);
     let amountToObliterate = caoToWei(6);
     let owner = accounts[9];
+    let transactionAddress = accounts[10];
 
     beforeEach('setup contract for each test', async function () {
         this.token = await Cacao.new(
@@ -30,8 +31,8 @@ contract('CacaoDestruction', async (accounts) => {
 
     describe('Destruct lifecycle', function () {
         it("succeeds", async function () {
-            await createCoin(this.token, creationAddresses, creationAmount);
-            await distributeCoin(this.token, distributionAddresses, amountToDistribute, owner);
+            await createCoin(this.token, creationAddresses, creationAmount, transactionAddress);
+            await distributeCoin(this.token, distributionAddresses, transactionAddress, amountToDistribute, owner);
             await assertInLimbo(this.token, caoToWei(900));
             await assertInCirculation(this.token, amountToDistribute);
             await assertInPurgatory(this.token, 0);
@@ -62,7 +63,7 @@ contract('CacaoDestruction', async (accounts) => {
 
     describe('generateDestructionReference', function () {
         beforeEach(async function () {
-            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, transactionAddress, creationAmount, owner);
         });
         describe('when the sender address is a distribution address', function () {
             it("succeeds", async function () {
@@ -84,7 +85,7 @@ contract('CacaoDestruction', async (accounts) => {
 
     describe('burn', function () {
         beforeEach(async function () {
-            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, transactionAddress, creationAmount, owner);
         });
         describe('when is valid reference', function () {
             beforeEach(async function () {
@@ -126,7 +127,7 @@ contract('CacaoDestruction', async (accounts) => {
 
     describe('obliterate', function () {
         beforeEach(async function () {
-            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, creationAmount, owner);
+            await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, transactionAddress, creationAmount, owner);
             await this.token.generateDestructionReference(destructionReference, { from: distributionAddresses[1] });
             await this.token.burn(amountToBurn, destructionReference, { from: owner });
         });

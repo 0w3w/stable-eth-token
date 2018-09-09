@@ -12,13 +12,14 @@ contract('StandardToken', function (accounts) {
   const recipient = accounts[10];
   const anotherAccount = accounts[11];
   const initialAmount = caoToWei(100);
+  const transactionAddress = accounts[12];
 
   beforeEach(async function () {
     this.token = await Cacao.new(
       creationAddresses[1], creationAddresses[2], creationAddresses[3], creationAddresses[4], // Creation Address 1 is msg.sender
       distributionAddresses[0], distributionAddresses[1], distributionAddresses[2], // Distribution Addresses
       delegatedTransferAddress, delegatedTransferFee);
-    await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, initialAmount, owner);
+    await createAndDistributeCoin(this.token, creationAddresses, distributionAddresses, transactionAddress, initialAmount, owner);
   });
 
   describe('total supply', function () {
