@@ -47,6 +47,21 @@ async function replaceCreator(contractInstance, oldAddress, newAddress, nonce, s
         { from: transactionAddress });
 }
 
+async function replaceDistributor(contractInstance, oldAddress, newAddress, nonce, signer0, signer1, transactionAddress) {
+    let txHash = await getHashOfReplaceAddress(contractInstance, oldAddress, newAddress, nonce);
+    let signature0 = web3.eth.sign(signer0, txHash);
+    let signature1 = web3.eth.sign(signer1, txHash);
+    return contractInstance.replaceDistributionAddress(
+        oldAddress,
+        newAddress,
+        nonce,
+        signer0,
+        signature0,
+        signer1,
+        signature1,
+        { from: transactionAddress });
+}
+
 contract('KeyRing', async (accounts) => {
     const creationAddresses = [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4]];
     const distributionAddresses = [accounts[5], accounts[6], accounts[7]];
@@ -93,18 +108,14 @@ contract('KeyRing', async (accounts) => {
 
             // Replace!
             let nonce = getNonce();
-            let txHash = await getHashOfReplaceAddress(this.token, oldAddress, newAddress, nonce);
-            let signature0 = web3.eth.sign(distributionAddresses[0], txHash);
-            let signature1 = web3.eth.sign(distributionAddresses[1], txHash);
-            let replacementTask = this.token.replaceDistributionAddress(
+            let replacementTask = replaceDistributor(
+                this.token,
                 oldAddress,
                 newAddress,
                 nonce,
                 distributionAddresses[0],
-                signature0,
                 distributionAddresses[1],
-                signature1,
-                { from: transactionAddress });
+                transactionAddress);
 
             let replaceEvent = await inTransaction(replacementTask, 'Replaced');
             replaceEvent.args._originalAddress.should.be.equal(oldAddress);
@@ -115,7 +126,6 @@ contract('KeyRing', async (accounts) => {
     });
 
     describe('replaceCreationAddress', function () {
-        // TODO Should it be able to replace itself?
         describe('when the signing addresses are creation addresses', async function () {
             describe('when valid signatures', function () {
                 it('address is replaced, event is emmited.', async function () {
@@ -316,5 +326,186 @@ contract('KeyRing', async (accounts) => {
     });
 
     describe('replaceDistributionAddresses', function () {
+        describe('when the signing addresses are distribution addresses', async function () {
+            describe('when valid signatures', function () {
+                it('address is replaced, event is emmited.', async function () {
+                    const oldAddress = distributionAddresses[2];
+                    const newAddress = accounts[9];
+                    let nonce = getNonce();
+                    let replacementTask = replaceDistributor(
+                        this.token,
+                        oldAddress,
+                        newAddress,
+                        nonce,
+                        distributionAddresses[0],
+                        distributionAddresses[1],
+                        transactionAddress);
+                    let replaceEvent = await inTransaction(replacementTask, 'Replaced');
+                    replaceEvent.args._originalAddress.should.be.equal(oldAddress);
+                    replaceEvent.args._newAddress.should.be.equal(newAddress);
+                    await assertIsDistributor(this.token, newAddress);
+                    await assertIsNotDistributor(this.token, oldAddress);
+                });
+                describe('invalid old address (when replacing an unknown address)', function () {
+                    it('reverts', async function () {
+                        const oldAddress = accounts[10];
+                        const newAddress = accounts[9];
+                        let nonce = getNonce();
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+                describe('invalid new address (when replacing to a already used address)', function () {
+                    it('reverts', async function () {
+                        const oldAddress = distributionAddresses[2];
+                        const newAddress = distributionAddresses[1];
+                        let nonce = getNonce();
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+                describe('invalid new address (when replacing to a creation address)', function () {
+                    it('reverts', async function () {
+                        const oldAddress = distributionAddresses[2];
+                        const newAddress = creationAddresses[0];
+                        let nonce = getNonce();
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+                describe('old and new address is the same', function () {
+                    it('reverts', async function () {
+                        const oldAddress = distributionAddresses[2];
+                        const newAddress = distributionAddresses[2];
+                        let nonce = getNonce();
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+                describe('signer is old address', function () {
+                    it('reverts', async function () {
+                        const oldAddress = distributionAddresses[1];
+                        const newAddress = accounts[9];
+                        let nonce = getNonce();
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+                describe('signer is new address', function () {
+                    it('reverts', async function () {
+                        const oldAddress = distributionAddresses[2];
+                        const newAddress = distributionAddresses[1];
+                        let nonce = getNonce();
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+                describe('when repeated nonce', function () {
+                    it('reverts', async function () {
+                        const oldAddress = distributionAddresses[2];
+                        const newAddress = accounts[9];
+                        let nonce = getNonce();
+                        await replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress);
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            newAddress,
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                        await assertRevert(replaceDistributor(
+                            this.token,
+                            oldAddress,
+                            accounts[10],
+                            nonce,
+                            distributionAddresses[0],
+                            distributionAddresses[1],
+                            transactionAddress));
+                    });
+                });
+            });
+            describe('when invalid signatures', function () {
+                it('reverts', async function () {
+                    const oldAddress = distributionAddresses[2];
+                    const newAddress = accounts[9];
+                    let nonce = getNonce();
+                    let txHash = await getHashOfReplaceAddress(this.token, oldAddress, newAddress, nonce);
+                    let signature0 = web3.eth.sign(distributionAddresses[0], txHash);
+                    let signature1 = web3.eth.sign(distributionAddresses[1], txHash);
+                    await assertRevert(this.token.replaceDistributionAddress(
+                        oldAddress,
+                        newAddress,
+                        nonce,
+                        distributionAddresses[0],
+                        signature0,
+                        distributionAddresses[1],
+                        "invalid-signature",
+                        { from: transactionAddress }));
+                });
+            });
+        });
+        describe('when the signing addresses are not distribution addresses', async function () {
+            it('reverts', async function () {
+                const oldAddress = distributionAddresses[2];
+                const newAddress = accounts[9];
+                let nonce = getNonce();
+                let txHash = await getHashOfReplaceAddress(this.token, oldAddress, newAddress, nonce);
+                let signature0 = web3.eth.sign(creationAddresses[0], txHash);
+                let signature1 = web3.eth.sign(creationAddresses[1], txHash);
+                await assertRevert(this.token.replaceDistributionAddress(
+                    oldAddress,
+                    newAddress,
+                    nonce,
+                    creationAddresses[0],
+                    signature0,
+                    creationAddresses[1],
+                    signature1,
+                    { from: transactionAddress }));
+            });
+        });
     });
 });
