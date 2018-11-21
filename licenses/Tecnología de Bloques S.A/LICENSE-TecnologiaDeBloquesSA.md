@@ -1,5 +1,5 @@
                         License
-                   Cadena de Bloques S.A.
+                Tecnología de Bloques S.A.
                 Version 1.0, November 2018
 
 TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
@@ -23,7 +23,7 @@ TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
    "You" (or "Your") shall mean an individual or Legal Entity
    exercising permissions granted by this License, in this instance
-   Cadena de Bloques S.A.
+   Tecnología de Bloques S.A.
 
    "Source" form shall mean the preferred form for making modifications,
    including but not limited to software source code, documentation
